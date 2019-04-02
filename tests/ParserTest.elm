@@ -11,9 +11,231 @@ test =
     Test.describe "Parser Tests"
         [ tokenTests
         , moduleNameTests
-        , exposedItemTests
         , operatorTests
+        , exposedItemTests
+        , exposingListTests
         , moduleDeclarationTests
+        , moduleImportTests
+        ]
+
+
+exposingListTests : Test.Test
+exposingListTests =
+    Test.describe "Exposing List Tests"
+        [ Test.test "Exposing value" <|
+            \_ ->
+                let
+                    source =
+                        "(hello)"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ExposingList
+                            [ Elm.ExposedValue (Elm.LowercaseIdentifier "hello")
+                            ]
+                            Elm.NotTrailing
+                    )
+                    (Parser.run Elm.exposingList source)
+        , Test.test "Exposing type opaque" <|
+            \_ ->
+                let
+                    source =
+                        "(Hello)"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ExposingList
+                            [ Elm.ExposedType (Elm.UppercaseIdentifier "Hello")
+                                Elm.NoExposedConstructors
+                            ]
+                            Elm.NotTrailing
+                    )
+                    (Parser.run Elm.exposingList source)
+        , Test.test "Exposing type all constructors" <|
+            \_ ->
+                let
+                    source =
+                        "(Hello(..))"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ExposingList
+                            [ Elm.ExposedType (Elm.UppercaseIdentifier "Hello")
+                                Elm.ExposedConstructorsDotDot
+                            ]
+                            Elm.NotTrailing
+                    )
+                    (Parser.run Elm.exposingList source)
+        , Test.test "Exposing type some constructors" <|
+            \_ ->
+                let
+                    source =
+                        "(Hello(World))"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ExposingList
+                            [ Elm.ExposedType (Elm.UppercaseIdentifier "Hello")
+                                (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "World" ]
+                                    Elm.NotTrailing
+                                )
+                            ]
+                            Elm.NotTrailing
+                    )
+                    (Parser.run Elm.exposingList source)
+        , Test.test "Exposing operator" <|
+            \_ ->
+                let
+                    source =
+                        "((++))"
+                in
+                Expect.equal
+                    (Ok <| Elm.ExposingList [ Elm.ExposedOperator Elm.PlusPlus ] Elm.NotTrailing)
+                    (Parser.run Elm.exposingList source)
+        , Test.test "Exposing many" <|
+            \_ ->
+                let
+                    source =
+                        "((++), myValue, String(Str))"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ExposingList
+                            [ Elm.ExposedOperator Elm.PlusPlus
+                            , Elm.ExposedValue (Elm.LowercaseIdentifier "myValue")
+                            , Elm.ExposedType
+                                (Elm.UppercaseIdentifier "String")
+                                (Elm.ExposedConstructors
+                                    [ Elm.UppercaseIdentifier "Str" ]
+                                    Elm.NotTrailing
+                                )
+                            ]
+                            Elm.NotTrailing
+                    )
+                    (Parser.run Elm.exposingList source)
+        , Test.test "Exposing many trailing" <|
+            \_ ->
+                let
+                    source =
+                        "((++), myValue, String(Str),)"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ExposingList
+                            [ Elm.ExposedOperator Elm.PlusPlus
+                            , Elm.ExposedValue (Elm.LowercaseIdentifier "myValue")
+                            , Elm.ExposedType
+                                (Elm.UppercaseIdentifier "String")
+                                (Elm.ExposedConstructors
+                                    [ Elm.UppercaseIdentifier "Str" ]
+                                    Elm.NotTrailing
+                                )
+                            ]
+                            Elm.Trailing
+                    )
+                    (Parser.run Elm.exposingList source)
+        , Test.test "Exposing many trailing in the middle" <|
+            \_ ->
+                let
+                    source =
+                        "((++), myValue, , String(Str))"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ExposingList
+                            [ Elm.ExposedOperator Elm.PlusPlus
+                            , Elm.ExposedValue (Elm.LowercaseIdentifier "myValue")
+                            , Elm.ExposedType
+                                (Elm.UppercaseIdentifier "String")
+                                (Elm.ExposedConstructors
+                                    [ Elm.UppercaseIdentifier "Str" ]
+                                    Elm.NotTrailing
+                                )
+                            ]
+                            Elm.TrailingInTheMiddle
+                    )
+                    (Parser.run Elm.exposingList source)
+        , Test.test "Exposing many trailing trailing" <|
+            \_ ->
+                let
+                    source =
+                        "((++), myValue, String(Str,),)"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ExposingList
+                            [ Elm.ExposedOperator Elm.PlusPlus
+                            , Elm.ExposedValue (Elm.LowercaseIdentifier "myValue")
+                            , Elm.ExposedType
+                                (Elm.UppercaseIdentifier "String")
+                                (Elm.ExposedConstructors
+                                    [ Elm.UppercaseIdentifier "Str" ]
+                                    Elm.Trailing
+                                )
+                            ]
+                            Elm.Trailing
+                    )
+                    (Parser.run Elm.exposingList source)
+        , Test.test "Exposing many missing parenthesis" <|
+            \_ ->
+                let
+                    source =
+                        "((++)"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ExposingList [ Elm.ExposedOperator Elm.PlusPlus ]
+                            Elm.Trailing
+                    )
+                    (Parser.run Elm.exposingList source)
+        , Test.test "Exposing many missing parenthesis and trailing" <|
+            \_ ->
+                let
+                    source =
+                        "((++),"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ExposingList [ Elm.ExposedOperator Elm.PlusPlus ]
+                            Elm.Trailing
+                    )
+                    (Parser.run Elm.exposingList source)
+        , Test.test "Exposing multiline" <|
+            \_ ->
+                let
+                    source =
+                        """( (++)
+                           , hello
+                           )
+                        """
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ExposingList
+                            [ Elm.ExposedOperator Elm.PlusPlus
+                            , Elm.ExposedValue (Elm.LowercaseIdentifier "hello")
+                            ]
+                            Elm.NotTrailing
+                    )
+                    (Parser.run Elm.exposingList source)
+        , Test.test "Exposing multiline in the middle" <|
+            \_ ->
+                let
+                    source =
+                        """( (++),
+                           , hello
+                           )
+                        """
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ExposingList
+                            [ Elm.ExposedOperator Elm.PlusPlus
+                            , Elm.ExposedValue (Elm.LowercaseIdentifier "hello")
+                            ]
+                            Elm.TrailingInTheMiddle
+                    )
+                    (Parser.run Elm.exposingList source)
         ]
 
 
@@ -143,10 +365,7 @@ exposedItemTests =
                         "String(..)"
                 in
                 Expect.equal
-                    (Ok <|
-                        Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                            Elm.ExposedConstructorsDotDot
-                    )
+                    (Ok <| Elm.ExposedType (Elm.UppercaseIdentifier "String") Elm.ExposedConstructorsDotDot)
                     (Parser.run Elm.exposedItem source)
         , Test.test "ExposedUnion with Constructors" <|
             \_ ->
@@ -157,9 +376,7 @@ exposedItemTests =
                 Expect.equal
                     (Ok <|
                         Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                            (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ]
-                                Elm.NotTrailing
-                            )
+                            (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
                     )
                     (Parser.run Elm.exposedItem source)
         , Test.test "ExposedUnion with Constructors trailing" <|
@@ -171,7 +388,35 @@ exposedItemTests =
                 Expect.equal
                     (Ok <|
                         Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                            (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ]
+                            (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.Trailing)
+                    )
+                    (Parser.run Elm.exposedItem source)
+        , Test.test "ExposedUnion with Constructors missing parenthesis" <|
+            \_ ->
+                let
+                    source =
+                        "String(Str"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                            (Elm.ExposedConstructors
+                                [ Elm.UppercaseIdentifier "Str" ]
+                                Elm.Trailing
+                            )
+                    )
+                    (Parser.run Elm.exposedItem source)
+        , Test.test "ExposedUnion with Constructors trailing and missing parenthesis" <|
+            \_ ->
+                let
+                    source =
+                        "String(Str,"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                            (Elm.ExposedConstructors
+                                [ Elm.UppercaseIdentifier "Str" ]
                                 Elm.Trailing
                             )
                     )
@@ -303,8 +548,8 @@ operatorTests =
 
 moduleDeclarationTests : Test.Test
 moduleDeclarationTests =
-    Test.describe "Module Declaration Tests"
-        [ Test.test "Simple module declaration" <|
+    Test.describe "Module Declaration Testz"
+        [ Test.test "Module name declaration" <|
             \_ ->
                 let
                     source =
@@ -312,14 +557,14 @@ moduleDeclarationTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ModuleDeclaration
+                        Elm.ModuleDeclarationPartial
                             (Elm.ModuleName (Elm.UppercaseIdentifier "Hello")
                                 []
                                 Elm.NotTrailing
                             )
                     )
                     (Parser.run Elm.moduleDeclaration source)
-        , Test.test "Simple module declaration with capital" <|
+        , Test.test "Module name declaration with capital" <|
             \_ ->
                 let
                     source =
@@ -327,11 +572,339 @@ moduleDeclarationTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ModuleDeclaration
+                        Elm.ModuleDeclarationPartial
                             (Elm.ModuleName (Elm.UppercaseIdentifier "Hello")
                                 []
                                 Elm.NotTrailing
                             )
                     )
                     (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration unfinished exposing" <|
+            \_ ->
+                let
+                    source =
+                        "module Hello exposing"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclarationPartial
+                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with open parenthesis" <|
+            \_ ->
+                let
+                    source =
+                        "module Hello exposing ("
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.ExposingList [] Elm.Trailing)
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with exposing nothing" <|
+            \_ ->
+                let
+                    source =
+                        "module Hello exposing ()"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.ExposingList [] Elm.NotTrailing)
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with exposing something" <|
+            \_ ->
+                let
+                    source =
+                        "module Hello exposing (value, String(Str), Int(..), (|>))"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.ExposingList
+                                [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
+                                , Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
+                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
+                                , Elm.ExposedOperator Elm.RightPipe
+                                ]
+                                Elm.NotTrailing
+                            )
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with exposing something multiline" <|
+            \_ ->
+                let
+                    source =
+                        """module Hello exposing
+                         ( value
+                         , String(Str)
+                         , Int(..)
+                         , (|>)
+                         )
+                        """
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.ExposingList
+                                [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
+                                , Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
+                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
+                                , Elm.ExposedOperator Elm.RightPipe
+                                ]
+                                Elm.NotTrailing
+                            )
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with exposing something trailing" <|
+            \_ ->
+                let
+                    source =
+                        "module Hello exposing (value, String(Str),)"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.ExposingList
+                                [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
+                                , Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
+                                ]
+                                Elm.Trailing
+                            )
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with exposing something trailing multiline" <|
+            \_ ->
+                let
+                    source =
+                        """module Hello exposing
+                         ( value
+                         , String(Str)
+                         , Int(..)
+                         , (|>)
+                         ,
+                        """
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.ExposingList
+                                [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
+                                , Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
+                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
+                                , Elm.ExposedOperator Elm.RightPipe
+                                ]
+                                Elm.Trailing
+                            )
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with exposing something trailing with no closing parenthesis" <|
+            \_ ->
+                let
+                    source =
+                        "module Hello exposing (value, String(Str),"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.ExposingList
+                                [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
+                                , Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
+                                ]
+                                Elm.Trailing
+                            )
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with exposing something trailing with no closing parenthesis multiline" <|
+            \_ ->
+                let
+                    source =
+                        """module Hello exposing
+                         ( value
+                         , String(Str)
+                         , Int(..)
+                         , (|>)
+                         ,
+                        """
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.ExposingList
+                                [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
+                                , Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
+                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
+                                , Elm.ExposedOperator Elm.RightPipe
+                                ]
+                                Elm.Trailing
+                            )
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with exposing something with no closing parenthesis multiline" <|
+            \_ ->
+                let
+                    source =
+                        "module Hello exposing (value, String(Str), "
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.ExposingList
+                                [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
+                                , Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
+                                ]
+                                Elm.Trailing
+                            )
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with exposing something with no closing parenthesis multiline" <|
+            \_ ->
+                let
+                    source =
+                        """module Hello exposing
+                         ( value
+                         , String(Str)
+                         , Int(..)
+                         , (|>)
+                        """
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.ExposingList
+                                [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
+                                , Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
+                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
+                                , Elm.ExposedOperator Elm.RightPipe
+                                ]
+                                Elm.Trailing
+                            )
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        ]
+
+
+moduleImportTests : Test.Test
+moduleImportTests =
+    Test.describe "Module Import Tests"
+        [ Test.test "Module import " <|
+            \_ ->
+                let
+                    source =
+                        "import "
+                in
+                Expect.equal
+                    (Ok Elm.ModuleImportIncomplete)
+                    (Parser.run Elm.moduleImport source)
+        , Test.test "Module import name declaration" <|
+            \_ ->
+                let
+                    source =
+                        "import Hello"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleImportPartial
+                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            Elm.AliasNone
+                    )
+                    (Parser.run Elm.moduleImport source)
+        , Test.test "Module import declaration alias partial" <|
+            \_ ->
+                let
+                    source =
+                        "import Hello as"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleImportPartial
+                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            Elm.AliasPartial
+                    )
+                    (Parser.run Elm.moduleImport source)
+        , Test.test "Module import declaration alias" <|
+            \_ ->
+                let
+                    source =
+                        "import Hello as H"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleImportPartial
+                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.Alias (Elm.UppercaseIdentifier "H"))
+                    )
+                    (Parser.run Elm.moduleImport source)
+        , Test.test "Module import declaration exposing" <|
+            \_ ->
+                let
+                    source =
+                        "import Hello exposing (world)"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleImport
+                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            Elm.AliasNone
+                            (Elm.ExposingList [ Elm.ExposedValue (Elm.LowercaseIdentifier "world") ] Elm.NotTrailing)
+                    )
+                    (Parser.run Elm.moduleImport source)
+        , Test.test "Module import declaration with alias and exposing" <|
+            \_ ->
+                let
+                    source =
+                        "import Hello as H exposing (world)"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleImport
+                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.Alias (Elm.UppercaseIdentifier "H"))
+                            (Elm.ExposingList [ Elm.ExposedValue (Elm.LowercaseIdentifier "world") ] Elm.NotTrailing)
+                    )
+                    (Parser.run Elm.moduleImport source)
+        , Test.test "Module import declaration with alias and exposing multiline" <|
+            \_ ->
+                let
+                    source =
+                        """import Hello as H exposing
+                             ( world,
+                             , myGoodness
+                             )
+                        """
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleImport
+                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.Alias (Elm.UppercaseIdentifier "H"))
+                            (Elm.ExposingList
+                                [ Elm.ExposedValue (Elm.LowercaseIdentifier "world")
+                                , Elm.ExposedValue (Elm.LowercaseIdentifier "myGoodness")
+                                ]
+                                Elm.TrailingInTheMiddle
+                            )
+                    )
+                    (Parser.run Elm.moduleImport source)
         ]

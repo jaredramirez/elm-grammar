@@ -1,15 +1,19 @@
 module Elm.Parser exposing
-    ( ExposedCustomTypeConstructors(..)
+    ( Alias(..)
+    , ExposedCustomTypeConstructors(..)
     , ExposedItem(..)
     , ExposingList(..)
     , Identifier(..)
     , ModuleDeclaration(..)
+    , ModuleImport(..)
     , ModuleName(..)
     , Operator(..)
     , Trailing(..)
     , exposedItem
+    , exposingList
     , lowercaseIdentifier
     , moduleDeclaration
+    , moduleImport
     , moduleName
     , operator
     , uppercaseIdentifier
@@ -18,27 +22,114 @@ module Elm.Parser exposing
 import Parser exposing ((|.), (|=), Parser)
 
 
+type Trailing
+    = Trailing
+    | TrailingInTheMiddle
+    | NotTrailing
+
+
 
 -- Module Declaration --
 
 
 type ModuleDeclaration
-    = ModuleDeclaration ModuleName
+    = ModuleDeclaration ModuleName ExposingList
+    | ModuleDeclarationPartial ModuleName
 
 
 moduleDeclaration : Parser ModuleDeclaration
 moduleDeclaration =
-    Parser.succeed ModuleDeclaration
+    Parser.oneOf
+        [ Parser.succeed
+            (\name maybeExposingList ->
+                case maybeExposingList of
+                    Nothing ->
+                        ModuleDeclarationPartial name
+
+                    Just exposedList ->
+                        ModuleDeclaration name exposedList
+            )
+            |. Parser.spaces
+            |. Parser.oneOf
+                [ chompStringInsensitive "module"
+                , Parser.succeed ()
+                    |. chompStringInsensitive "port"
+                    |. Parser.spaces
+                    |. chompStringInsensitive "module"
+                ]
+            |. Parser.spaces
+            |= moduleName
+            |. Parser.spaces
+            |= Parser.oneOf
+                [ Parser.succeed identity
+                    |. chompStringInsensitive "exposing"
+                    |. Parser.spaces
+                    |= Parser.oneOf
+                        [ exposingList |> Parser.map Just
+                        , Parser.succeed Nothing
+                        ]
+                , Parser.succeed Nothing
+                ]
+        ]
+
+
+
+-- Module Imports --
+
+
+type ModuleImport
+    = ModuleImport ModuleName Alias ExposingList
+    | ModuleImportPartial ModuleName Alias
+    | ModuleImportIncomplete
+
+
+type Alias
+    = AliasPartial
+    | Alias Identifier
+    | AliasNone
+
+
+moduleImport : Parser ModuleImport
+moduleImport =
+    Parser.succeed identity
         |. Parser.spaces
-        |. Parser.oneOf
-            [ chompStringInsensitive "module"
-            , Parser.succeed ()
-                |. chompStringInsensitive "port"
+        |. chompStringInsensitive "import"
+        |. Parser.spaces
+        |= Parser.oneOf
+            [ Parser.succeed
+                (\name maybeAliasTuple maybeExposingList ->
+                    case maybeExposingList of
+                        Nothing ->
+                            ModuleImportPartial name maybeAliasTuple
+
+                        Just exposedList ->
+                            ModuleImport name maybeAliasTuple exposedList
+                )
+                |= moduleName
                 |. Parser.spaces
-                |. chompStringInsensitive "module"
+                |= Parser.oneOf
+                    [ Parser.succeed identity
+                        |. chompStringInsensitive "as"
+                        |. Parser.spaces
+                        |= Parser.oneOf
+                            [ identifier |> Parser.map Alias
+                            , Parser.succeed AliasPartial
+                            ]
+                    , Parser.succeed AliasNone
+                    ]
+                |. Parser.spaces
+                |= Parser.oneOf
+                    [ Parser.succeed identity
+                        |. chompStringInsensitive "exposing"
+                        |. Parser.spaces
+                        |= Parser.oneOf
+                            [ exposingList |> Parser.map Just
+                            , Parser.succeed Nothing
+                            ]
+                    , Parser.succeed Nothing
+                    ]
+            , Parser.succeed ModuleImportIncomplete
             ]
-        |. Parser.spaces
-        |= moduleName
 
 
 
@@ -46,8 +137,42 @@ moduleDeclaration =
 
 
 type ExposingList
-    = ExposingList (List ExposedItem)
-    | ExposingListDoubleDot (List ExposedItem)
+    = ExposingList (List ExposedItem) Trailing
+    | ExposingListDoubleDot
+
+
+exposingList : Parser ExposingList
+exposingList =
+    Parser.oneOf
+        [ Parser.succeed
+            (\result parenTrailing ->
+                case ( result, parenTrailing ) of
+                    ( ExposingList exposed NotTrailing, Trailing ) ->
+                        ExposingList exposed parenTrailing
+
+                    _ ->
+                        result
+            )
+            |. chompChar '('
+            |. Parser.spaces
+            |= Parser.oneOf
+                [ Parser.succeed ExposingListDoubleDot
+                    |. Parser.token ".."
+                , sequence
+                    { subParser = exposedItem
+                    , separator = ','
+                    , allowSpaces = True
+                    }
+                    |> Parser.map
+                        (\( exposed, trailing ) ->
+                            ExposingList exposed trailing
+                        )
+                ]
+            |= Parser.oneOf
+                [ chompChar ')' |> Parser.map (\() -> NotTrailing)
+                , Parser.succeed Trailing
+                ]
+        ]
 
 
 type ExposedItem
@@ -69,8 +194,17 @@ exposedItem =
         , Parser.succeed (\ident constructors -> ExposedType ident constructors)
             |= uppercaseIdentifier
             |= Parser.oneOf
-                [ Parser.succeed identity
+                [ Parser.succeed
+                    (\result parenTrailing ->
+                        case ( result, parenTrailing ) of
+                            ( ExposedConstructors exposed NotTrailing, Trailing ) ->
+                                ExposedConstructors exposed parenTrailing
+
+                            _ ->
+                                result
+                    )
                     |. chompChar '('
+                    |. Parser.spaces
                     |= Parser.oneOf
                         [ Parser.succeed ExposedConstructorsDotDot
                             |. Parser.token ".."
@@ -84,7 +218,10 @@ exposedItem =
                                     ExposedConstructors constructors trailing
                                 )
                         ]
-                    |. chompChar ')'
+                    |= Parser.oneOf
+                        [ chompChar ')' |> Parser.map (\() -> NotTrailing)
+                        , Parser.succeed Trailing
+                        ]
                 , Parser.succeed NoExposedConstructors
                 ]
         , Parser.succeed ExposedOperator
@@ -133,11 +270,6 @@ operator =
 
 type ModuleName
     = ModuleName Identifier (List Identifier) Trailing
-
-
-type Trailing
-    = Trailing
-    | NotTrailing
 
 
 moduleName : Parser ModuleName
@@ -230,6 +362,11 @@ chompChar char =
     Parser.chompIf (\c -> c == char)
 
 
+chompUntilEndOfLine : Parser ()
+chompUntilEndOfLine =
+    Parser.chompWhile (\c -> c /= '\n')
+
+
 withDefault : item -> Parser item -> Parser item
 withDefault default subParser =
     Parser.oneOf [ subParser, Parser.succeed default ]
@@ -263,13 +400,25 @@ sequenceHelp { subParser, separator, allowSpaces } ( items, trailing ) =
             |. chompSpacesIfAllowed
             |= Parser.oneOf
                 [ chompChar separator |> Parser.map (\() -> Trailing)
-                , Parser.succeed NotTrailing
+                , Parser.succeed
+                    (case trailing of
+                        Trailing ->
+                            NotTrailing
+
+                        _ ->
+                            trailing
+                    )
                 ]
+            |. chompSpacesIfAllowed
+        , Parser.succeed (Parser.Loop ( items, TrailingInTheMiddle ))
+            |. chompChar separator
             |. chompSpacesIfAllowed
         , Parser.succeed (Parser.Done ( List.reverse items, trailing ))
         ]
 
 
+{-| Differs from sequence in it's implementation. Does not support TrailingInTheMiddle
+-}
 sequenceAtLeastOne : SequenceConfig item -> Parser ( item, List item, Trailing )
 sequenceAtLeastOne config =
     Parser.succeed (\head ( rest, trailing ) -> ( head, rest, trailing ))

@@ -10,7 +10,8 @@ module Elm.Parser exposing
     , ModuleImport(..)
     , ModuleName
     , ModuleName_(..)
-    , Operator(..)
+    , Operator
+    , Operator_(..)
     , Trailing(..)
     , elm
     , exposedItem
@@ -277,7 +278,11 @@ exposedItem =
         ]
 
 
-type Operator
+type alias Operator =
+    Located Operator_
+
+
+type Operator_
     = PlusPlus
     | Plus
     | Minus
@@ -308,6 +313,7 @@ operator =
         , chompString ">=" |> Parser.map (\() -> GreaterThan)
         , chompString "<=" |> Parser.map (\() -> LessThan)
         ]
+        |> located
 
 
 

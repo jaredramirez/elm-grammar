@@ -91,7 +91,17 @@ exposingListTests =
                         "((++))"
                 in
                 Expect.equal
-                    (Ok <| Elm.ExposingList [ Elm.ExposedOperator Elm.PlusPlus ] Elm.NotTrailing)
+                    (Ok <|
+                        Elm.ExposingList
+                            [ Elm.ExposedOperator
+                                (Elm.Located
+                                    ( 1, 3 )
+                                    Elm.PlusPlus
+                                    ( 1, 5 )
+                                )
+                            ]
+                            Elm.NotTrailing
+                    )
                     (Parser.run Elm.exposingList source)
         , Test.test "Exposing many" <|
             \_ ->
@@ -102,7 +112,12 @@ exposingListTests =
                 Expect.equal
                     (Ok <|
                         Elm.ExposingList
-                            [ Elm.ExposedOperator Elm.PlusPlus
+                            [ Elm.ExposedOperator
+                                (Elm.Located
+                                    ( 1, 3 )
+                                    Elm.PlusPlus
+                                    ( 1, 5 )
+                                )
                             , Elm.ExposedValue (Elm.LowercaseIdentifier "myValue")
                             , Elm.ExposedType
                                 (Elm.UppercaseIdentifier "String")
@@ -123,7 +138,12 @@ exposingListTests =
                 Expect.equal
                     (Ok <|
                         Elm.ExposingList
-                            [ Elm.ExposedOperator Elm.PlusPlus
+                            [ Elm.ExposedOperator
+                                (Elm.Located
+                                    ( 1, 3 )
+                                    Elm.PlusPlus
+                                    ( 1, 5 )
+                                )
                             , Elm.ExposedValue (Elm.LowercaseIdentifier "myValue")
                             , Elm.ExposedType
                                 (Elm.UppercaseIdentifier "String")
@@ -144,7 +164,12 @@ exposingListTests =
                 Expect.equal
                     (Ok <|
                         Elm.ExposingList
-                            [ Elm.ExposedOperator Elm.PlusPlus
+                            [ Elm.ExposedOperator
+                                (Elm.Located
+                                    ( 1, 3 )
+                                    Elm.PlusPlus
+                                    ( 1, 5 )
+                                )
                             , Elm.ExposedValue (Elm.LowercaseIdentifier "myValue")
                             , Elm.ExposedType
                                 (Elm.UppercaseIdentifier "String")
@@ -165,7 +190,12 @@ exposingListTests =
                 Expect.equal
                     (Ok <|
                         Elm.ExposingList
-                            [ Elm.ExposedOperator Elm.PlusPlus
+                            [ Elm.ExposedOperator
+                                (Elm.Located
+                                    ( 1, 3 )
+                                    Elm.PlusPlus
+                                    ( 1, 5 )
+                                )
                             , Elm.ExposedValue (Elm.LowercaseIdentifier "myValue")
                             , Elm.ExposedType
                                 (Elm.UppercaseIdentifier "String")
@@ -185,7 +215,14 @@ exposingListTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposingList [ Elm.ExposedOperator Elm.PlusPlus ]
+                        Elm.ExposingList
+                            [ Elm.ExposedOperator
+                                (Elm.Located
+                                    ( 1, 3 )
+                                    Elm.PlusPlus
+                                    ( 1, 5 )
+                                )
+                            ]
                             Elm.Trailing
                     )
                     (Parser.run Elm.exposingList source)
@@ -197,7 +234,14 @@ exposingListTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposingList [ Elm.ExposedOperator Elm.PlusPlus ]
+                        Elm.ExposingList
+                            [ Elm.ExposedOperator
+                                (Elm.Located
+                                    ( 1, 3 )
+                                    Elm.PlusPlus
+                                    ( 1, 5 )
+                                )
+                            ]
                             Elm.Trailing
                     )
                     (Parser.run Elm.exposingList source)
@@ -213,7 +257,12 @@ exposingListTests =
                 Expect.equal
                     (Ok <|
                         Elm.ExposingList
-                            [ Elm.ExposedOperator Elm.PlusPlus
+                            [ Elm.ExposedOperator
+                                (Elm.Located
+                                    ( 1, 4 )
+                                    Elm.PlusPlus
+                                    ( 1, 6 )
+                                )
                             , Elm.ExposedValue (Elm.LowercaseIdentifier "hello")
                             ]
                             Elm.NotTrailing
@@ -231,7 +280,12 @@ exposingListTests =
                 Expect.equal
                     (Ok <|
                         Elm.ExposingList
-                            [ Elm.ExposedOperator Elm.PlusPlus
+                            [ Elm.ExposedOperator
+                                (Elm.Located
+                                    ( 1, 4 )
+                                    Elm.PlusPlus
+                                    ( 1, 6 )
+                                )
                             , Elm.ExposedValue (Elm.LowercaseIdentifier "hello")
                             ]
                             Elm.TrailingInTheMiddle
@@ -471,7 +525,15 @@ exposedItemTests =
                     source =
                         "(++)"
                 in
-                Expect.equal (Ok <| Elm.ExposedOperator Elm.PlusPlus)
+                Expect.equal
+                    (Ok <|
+                        Elm.ExposedOperator
+                            (Elm.Located
+                                ( 1, 2 )
+                                Elm.PlusPlus
+                                ( 1, 4 )
+                            )
+                    )
                     (Parser.run Elm.exposedItem source)
         ]
 
@@ -486,7 +548,12 @@ operatorTests =
                         "++"
                 in
                 Expect.equal
-                    (Ok Elm.PlusPlus)
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.PlusPlus
+                            ( 1, 3 )
+                    )
                     (Parser.run Elm.operator source)
         , Test.test "+" <|
             \_ ->
@@ -495,7 +562,12 @@ operatorTests =
                         "+"
                 in
                 Expect.equal
-                    (Ok Elm.Plus)
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.Plus
+                            ( 1, 2 )
+                    )
                     (Parser.run Elm.operator source)
         , Test.test "-" <|
             \_ ->
@@ -504,7 +576,12 @@ operatorTests =
                         "-"
                 in
                 Expect.equal
-                    (Ok Elm.Minus)
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.Minus
+                            ( 1, 2 )
+                    )
                     (Parser.run Elm.operator source)
         , Test.test "*" <|
             \_ ->
@@ -513,7 +590,12 @@ operatorTests =
                         "*"
                 in
                 Expect.equal
-                    (Ok Elm.Multiply)
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.Multiply
+                            ( 1, 2 )
+                    )
                     (Parser.run Elm.operator source)
         , Test.test "/" <|
             \_ ->
@@ -522,7 +604,12 @@ operatorTests =
                         "/"
                 in
                 Expect.equal
-                    (Ok Elm.DivideFloat)
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.DivideFloat
+                            ( 1, 2 )
+                    )
                     (Parser.run Elm.operator source)
         , Test.test "//" <|
             \_ ->
@@ -531,7 +618,12 @@ operatorTests =
                         "//"
                 in
                 Expect.equal
-                    (Ok Elm.DivideInt)
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.DivideInt
+                            ( 1, 3 )
+                    )
                     (Parser.run Elm.operator source)
         , Test.test "|>" <|
             \_ ->
@@ -540,7 +632,12 @@ operatorTests =
                         "|>"
                 in
                 Expect.equal
-                    (Ok Elm.RightPipe)
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.RightPipe
+                            ( 1, 3 )
+                    )
                     (Parser.run Elm.operator source)
         , Test.test "<|" <|
             \_ ->
@@ -549,7 +646,12 @@ operatorTests =
                         "<|"
                 in
                 Expect.equal
-                    (Ok Elm.LeftPipe)
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.LeftPipe
+                            ( 1, 3 )
+                    )
                     (Parser.run Elm.operator source)
         , Test.test "|=" <|
             \_ ->
@@ -558,7 +660,12 @@ operatorTests =
                         "|="
                 in
                 Expect.equal
-                    (Ok Elm.ParseKeep)
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.ParseKeep
+                            ( 1, 3 )
+                    )
                     (Parser.run Elm.operator source)
         , Test.test "|." <|
             \_ ->
@@ -567,7 +674,12 @@ operatorTests =
                         "|."
                 in
                 Expect.equal
-                    (Ok Elm.ParseIgnore)
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.ParseIgnore
+                            ( 1, 3 )
+                    )
                     (Parser.run Elm.operator source)
         , Test.test ">=" <|
             \_ ->
@@ -576,7 +688,12 @@ operatorTests =
                         ">="
                 in
                 Expect.equal
-                    (Ok Elm.GreaterThan)
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.GreaterThan
+                            ( 1, 3 )
+                    )
                     (Parser.run Elm.operator source)
         , Test.test "<=" <|
             \_ ->
@@ -585,7 +702,12 @@ operatorTests =
                         "<="
                 in
                 Expect.equal
-                    (Ok Elm.LessThan)
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.LessThan
+                            ( 1, 3 )
+                    )
                     (Parser.run Elm.operator source)
         ]
 
@@ -718,7 +840,12 @@ moduleDeclarationTests =
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
                                     (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
-                                , Elm.ExposedOperator Elm.RightPipe
+                                , Elm.ExposedOperator
+                                    (Elm.Located
+                                        ( 1, 1 )
+                                        Elm.RightPipe
+                                        ( 1, 3 )
+                                    )
                                 ]
                                 Elm.NotTrailing
                             )
@@ -753,7 +880,12 @@ moduleDeclarationTests =
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
                                     (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
-                                , Elm.ExposedOperator Elm.RightPipe
+                                , Elm.ExposedOperator
+                                    (Elm.Located
+                                        ( 1, 1 )
+                                        Elm.RightPipe
+                                        ( 1, 3 )
+                                    )
                                 ]
                                 Elm.NotTrailing
                             )
@@ -815,7 +947,12 @@ moduleDeclarationTests =
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
                                     (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
-                                , Elm.ExposedOperator Elm.RightPipe
+                                , Elm.ExposedOperator
+                                    (Elm.Located
+                                        ( 1, 1 )
+                                        Elm.RightPipe
+                                        ( 1, 3 )
+                                    )
                                 ]
                                 Elm.Trailing
                             )
@@ -877,7 +1014,12 @@ moduleDeclarationTests =
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
                                     (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
-                                , Elm.ExposedOperator Elm.RightPipe
+                                , Elm.ExposedOperator
+                                    (Elm.Located
+                                        ( 1, 1 )
+                                        Elm.RightPipe
+                                        ( 1, 3 )
+                                    )
                                 ]
                                 Elm.Trailing
                             )
@@ -938,7 +1080,12 @@ moduleDeclarationTests =
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
                                     (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
-                                , Elm.ExposedOperator Elm.RightPipe
+                                , Elm.ExposedOperator
+                                    (Elm.Located
+                                        ( 1, 1 )
+                                        Elm.RightPipe
+                                        ( 1, 3 )
+                                    )
                                 ]
                                 Elm.Trailing
                             )
@@ -1301,7 +1448,14 @@ sourceTests =
                                 )
                                 (Elm.Alias (Elm.UppercaseIdentifier "P"))
                                 (Just <|
-                                    Elm.ExposingList [ Elm.ExposedOperator Elm.ParseIgnore ]
+                                    Elm.ExposingList
+                                        [ Elm.ExposedOperator
+                                            (Elm.Located
+                                                ( 9, 55 )
+                                                Elm.ParseIgnore
+                                                ( 9, 57 )
+                                            )
+                                        ]
                                         Elm.NotTrailing
                                 )
                             ]

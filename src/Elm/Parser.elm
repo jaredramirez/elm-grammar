@@ -1,14 +1,18 @@
 module Elm.Parser exposing
     ( Alias(..)
+    , Elm(..)
     , ExposedCustomTypeConstructors(..)
     , ExposedItem(..)
     , ExposingList(..)
     , Identifier(..)
+    , Located
     , ModuleDeclaration(..)
     , ModuleImport(..)
-    , ModuleName(..)
+    , ModuleName
+    , ModuleName_(..)
     , Operator(..)
     , Trailing(..)
+    , elm
     , exposedItem
     , exposingList
     , lowercaseIdentifier
@@ -26,6 +30,57 @@ type Trailing
     = Trailing
     | TrailingInTheMiddle
     | NotTrailing
+
+
+
+-- Elm Source --
+
+
+type Elm
+    = Elm (Maybe ModuleDeclaration) (List ModuleImport)
+
+
+elm : Parser Elm
+elm =
+    Parser.succeed Elm
+        |. Parser.spaces
+        |= Parser.oneOf
+            [ Parser.succeed identity
+                |= moduleDeclaration
+                |. Parser.spaces
+                |> Parser.map Just
+            , Parser.succeed Nothing
+            ]
+        |= Parser.oneOf
+            [ Parser.succeed identity
+                |= sequence
+                    { subParser = moduleImport
+                    , separator = ' '
+                    , allowSpaces = True
+                    }
+                |. Parser.spaces
+                |> Parser.map Tuple.first
+            , Parser.succeed []
+            ]
+
+
+
+-- Located --
+
+
+type alias Located a =
+    { start : ( Int, Int )
+    , value : a
+    , end : ( Int, Int )
+    }
+
+
+located : Parser a -> Parser (Located a)
+located parser =
+    Parser.succeed Located
+        |= Parser.getPosition
+        |= parser
+        |= Parser.getPosition
 
 
 
@@ -78,8 +133,7 @@ moduleDeclaration =
 
 
 type ModuleImport
-    = ModuleImport ModuleName Alias ExposingList
-    | ModuleImportPartial ModuleName Alias
+    = ModuleImport ModuleName Alias (Maybe ExposingList)
     | ModuleImportIncomplete
 
 
@@ -96,15 +150,7 @@ moduleImport =
         |. chompStringInsensitive "import"
         |. Parser.spaces
         |= Parser.oneOf
-            [ Parser.succeed
-                (\name maybeAliasTuple maybeExposingList ->
-                    case maybeExposingList of
-                        Nothing ->
-                            ModuleImportPartial name maybeAliasTuple
-
-                        Just exposedList ->
-                            ModuleImport name maybeAliasTuple exposedList
-                )
+            [ Parser.succeed ModuleImport
                 |= moduleName
                 |. Parser.spaces
                 |= Parser.oneOf
@@ -268,8 +314,12 @@ operator =
 -- Module Name --
 
 
-type ModuleName
-    = ModuleName Identifier (List Identifier) Trailing
+type alias ModuleName =
+    Located ModuleName_
+
+
+type ModuleName_
+    = ModuleName_ Identifier (List Identifier) Trailing
 
 
 moduleName : Parser ModuleName
@@ -279,7 +329,8 @@ moduleName =
         , separator = '.'
         , allowSpaces = False
         }
-        |> Parser.map (\( head, rest, trailing ) -> ModuleName head rest trailing)
+        |> Parser.map (\( head, rest, trailing ) -> ModuleName_ head rest trailing)
+        |> located
 
 
 

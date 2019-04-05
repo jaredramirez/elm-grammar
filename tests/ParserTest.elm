@@ -16,6 +16,7 @@ test =
         , exposingListTests
         , moduleDeclarationTests
         , moduleImportTests
+        , sourceTests
         ]
 
 
@@ -270,7 +271,17 @@ moduleNameTests =
                     source =
                         "Hello"
                 in
-                Expect.equal (Ok <| Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                Expect.equal
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            (Elm.ModuleName_
+                                (Elm.UppercaseIdentifier "Hello")
+                                []
+                                Elm.NotTrailing
+                            )
+                            ( 1, 6 )
+                    )
                     (Parser.run Elm.moduleName source)
         , Test.test "Many ModuleNames" <|
             \_ ->
@@ -280,9 +291,16 @@ moduleNameTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ModuleName (Elm.UppercaseIdentifier "Hello")
-                            [ Elm.UppercaseIdentifier "World", Elm.UppercaseIdentifier "HowYaDoing" ]
-                            Elm.NotTrailing
+                        Elm.Located
+                            ( 1, 1 )
+                            (Elm.ModuleName_
+                                (Elm.UppercaseIdentifier "Hello")
+                                [ Elm.UppercaseIdentifier "World"
+                                , Elm.UppercaseIdentifier "HowYaDoing"
+                                ]
+                                Elm.NotTrailing
+                            )
+                            ( 1, 23 )
                     )
                     (Parser.run Elm.moduleName source)
         , Test.test "Single ModuleName Lowercase" <|
@@ -291,7 +309,17 @@ moduleNameTests =
                     source =
                         "hello"
                 in
-                Expect.equal (Ok <| Elm.ModuleName (Elm.LowercaseIdentifier "hello") [] Elm.NotTrailing)
+                Expect.equal
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            (Elm.ModuleName_
+                                (Elm.LowercaseIdentifier "hello")
+                                []
+                                Elm.NotTrailing
+                            )
+                            ( 1, 6 )
+                    )
                     (Parser.run Elm.moduleName source)
         , Test.test "Many ModuleNames Lowercase" <|
             \_ ->
@@ -301,9 +329,16 @@ moduleNameTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ModuleName (Elm.LowercaseIdentifier "hello")
-                            [ Elm.UppercaseIdentifier "World", Elm.LowercaseIdentifier "howYaDoing" ]
-                            Elm.NotTrailing
+                        Elm.Located
+                            ( 1, 1 )
+                            (Elm.ModuleName_
+                                (Elm.LowercaseIdentifier "hello")
+                                [ Elm.UppercaseIdentifier "World"
+                                , Elm.LowercaseIdentifier "howYaDoing"
+                                ]
+                                Elm.NotTrailing
+                            )
+                            ( 1, 23 )
                     )
                     (Parser.run Elm.moduleName source)
         , Test.test "Single ModuleName trailing '.'" <|
@@ -314,9 +349,14 @@ moduleNameTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ModuleName (Elm.UppercaseIdentifier "Hello")
-                            []
-                            Elm.Trailing
+                        Elm.Located
+                            ( 1, 1 )
+                            (Elm.ModuleName_
+                                (Elm.UppercaseIdentifier "Hello")
+                                []
+                                Elm.Trailing
+                            )
+                            ( 1, 7 )
                     )
                     (Parser.run Elm.moduleName source)
         , Test.test "Many ModuleName trailing '.'" <|
@@ -327,9 +367,13 @@ moduleNameTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ModuleName (Elm.UppercaseIdentifier "Hello")
-                            [ Elm.UppercaseIdentifier "World" ]
-                            Elm.Trailing
+                        Elm.Located
+                            ( 1, 1 )
+                            (Elm.ModuleName_ (Elm.UppercaseIdentifier "Hello")
+                                [ Elm.UppercaseIdentifier "World" ]
+                                Elm.Trailing
+                            )
+                            ( 1, 13 )
                     )
                     (Parser.run Elm.moduleName source)
         ]
@@ -558,9 +602,14 @@ moduleDeclarationTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleDeclarationPartial
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello")
-                                []
-                                Elm.NotTrailing
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
                             )
                     )
                     (Parser.run Elm.moduleDeclaration source)
@@ -573,9 +622,14 @@ moduleDeclarationTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleDeclarationPartial
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello")
-                                []
-                                Elm.NotTrailing
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
                             )
                     )
                     (Parser.run Elm.moduleDeclaration source)
@@ -588,7 +642,15 @@ moduleDeclarationTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleDeclarationPartial
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
                     )
                     (Parser.run Elm.moduleDeclaration source)
         , Test.test "Module declaration with open parenthesis" <|
@@ -600,7 +662,15 @@ moduleDeclarationTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleDeclaration
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
                             (Elm.ExposingList [] Elm.Trailing)
                     )
                     (Parser.run Elm.moduleDeclaration source)
@@ -613,7 +683,15 @@ moduleDeclarationTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleDeclaration
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
                             (Elm.ExposingList [] Elm.NotTrailing)
                     )
                     (Parser.run Elm.moduleDeclaration source)
@@ -626,7 +704,15 @@ moduleDeclarationTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleDeclaration
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
                             (Elm.ExposingList
                                 [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
@@ -653,7 +739,15 @@ moduleDeclarationTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleDeclaration
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
                             (Elm.ExposingList
                                 [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
@@ -674,7 +768,15 @@ moduleDeclarationTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleDeclaration
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
                             (Elm.ExposingList
                                 [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
@@ -699,7 +801,15 @@ moduleDeclarationTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleDeclaration
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
                             (Elm.ExposingList
                                 [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
@@ -720,7 +830,15 @@ moduleDeclarationTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleDeclaration
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
                             (Elm.ExposingList
                                 [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
@@ -745,7 +863,15 @@ moduleDeclarationTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleDeclaration
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
                             (Elm.ExposingList
                                 [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
@@ -766,7 +892,15 @@ moduleDeclarationTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleDeclaration
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
                             (Elm.ExposingList
                                 [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
@@ -790,7 +924,15 @@ moduleDeclarationTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleDeclaration
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
                             (Elm.ExposingList
                                 [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
@@ -825,9 +967,40 @@ moduleImportTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ModuleImportPartial
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                        Elm.ModuleImport
+                            (Elm.Located
+                                ( 1, 8 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 1, 13 )
+                            )
                             Elm.AliasNone
+                            Nothing
+                    )
+                    (Parser.run Elm.moduleImport source)
+        , Test.test "Module import name declaration trailing" <|
+            \_ ->
+                let
+                    source =
+                        "import Hello."
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleImport
+                            (Elm.Located
+                                ( 1, 8 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.Trailing
+                                )
+                                ( 1, 14 )
+                            )
+                            Elm.AliasNone
+                            Nothing
                     )
                     (Parser.run Elm.moduleImport source)
         , Test.test "Module import declaration alias partial" <|
@@ -838,9 +1011,18 @@ moduleImportTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ModuleImportPartial
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                        Elm.ModuleImport
+                            (Elm.Located
+                                ( 1, 8 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 1, 13 )
+                            )
                             Elm.AliasPartial
+                            Nothing
                     )
                     (Parser.run Elm.moduleImport source)
         , Test.test "Module import declaration alias" <|
@@ -851,9 +1033,18 @@ moduleImportTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ModuleImportPartial
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                        Elm.ModuleImport
+                            (Elm.Located
+                                ( 1, 8 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 1, 13 )
+                            )
                             (Elm.Alias (Elm.UppercaseIdentifier "H"))
+                            Nothing
                     )
                     (Parser.run Elm.moduleImport source)
         , Test.test "Module import declaration exposing" <|
@@ -865,9 +1056,21 @@ moduleImportTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleImport
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.Located
+                                ( 1, 8 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 1, 13 )
+                            )
                             Elm.AliasNone
-                            (Elm.ExposingList [ Elm.ExposedValue (Elm.LowercaseIdentifier "world") ] Elm.NotTrailing)
+                            (Just <|
+                                Elm.ExposingList
+                                    [ Elm.ExposedValue (Elm.LowercaseIdentifier "world") ]
+                                    Elm.NotTrailing
+                            )
                     )
                     (Parser.run Elm.moduleImport source)
         , Test.test "Module import declaration with alias and exposing" <|
@@ -879,9 +1082,63 @@ moduleImportTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleImport
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.Located
+                                ( 1, 8 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 1, 13 )
+                            )
                             (Elm.Alias (Elm.UppercaseIdentifier "H"))
-                            (Elm.ExposingList [ Elm.ExposedValue (Elm.LowercaseIdentifier "world") ] Elm.NotTrailing)
+                            (Just <|
+                                Elm.ExposingList [ Elm.ExposedValue (Elm.LowercaseIdentifier "world") ] Elm.NotTrailing
+                            )
+                    )
+                    (Parser.run Elm.moduleImport source)
+        , Test.test "Module import declaration with alias and exposing partial" <|
+            \_ ->
+                let
+                    source =
+                        "import Hello as H exposing"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleImport
+                            (Elm.Located
+                                ( 1, 8 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 1, 13 )
+                            )
+                            (Elm.Alias (Elm.UppercaseIdentifier "H"))
+                            Nothing
+                    )
+                    (Parser.run Elm.moduleImport source)
+        , Test.test "Module import declaration with alias and exposing trailing" <|
+            \_ ->
+                let
+                    source =
+                        "import Hello as H exposing ("
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleImport
+                            (Elm.Located
+                                ( 1, 8 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 1, 13 )
+                            )
+                            (Elm.Alias (Elm.UppercaseIdentifier "H"))
+                            (Just <| Elm.ExposingList [] Elm.Trailing)
                     )
                     (Parser.run Elm.moduleImport source)
         , Test.test "Module import declaration with alias and exposing multiline" <|
@@ -897,14 +1154,158 @@ moduleImportTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleImport
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [] Elm.NotTrailing)
+                            (Elm.Located
+                                ( 1, 8 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 1, 13 )
+                            )
                             (Elm.Alias (Elm.UppercaseIdentifier "H"))
-                            (Elm.ExposingList
-                                [ Elm.ExposedValue (Elm.LowercaseIdentifier "world")
-                                , Elm.ExposedValue (Elm.LowercaseIdentifier "myGoodness")
-                                ]
-                                Elm.TrailingInTheMiddle
+                            (Just <|
+                                Elm.ExposingList
+                                    [ Elm.ExposedValue (Elm.LowercaseIdentifier "world")
+                                    , Elm.ExposedValue (Elm.LowercaseIdentifier "myGoodness")
+                                    ]
+                                    Elm.TrailingInTheMiddle
                             )
                     )
                     (Parser.run Elm.moduleImport source)
+        ]
+
+
+sourceTests : Test.Test
+sourceTests =
+    Test.describe "Source tests"
+        [ Test.test "Simple Module import " <|
+            \_ ->
+                let
+                    source =
+                        """
+                        module Ya exposing ()
+
+                        import Hello
+                        """
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.Elm
+                            (Just
+                                (Elm.ModuleDeclaration
+                                    (Elm.Located
+                                        ( 2, 32 )
+                                        (Elm.ModuleName_
+                                            (Elm.UppercaseIdentifier "Ya")
+                                            []
+                                            Elm.NotTrailing
+                                        )
+                                        ( 2, 34 )
+                                    )
+                                    (Elm.ExposingList [] Elm.NotTrailing)
+                                )
+                            )
+                            [ Elm.ModuleImport
+                                (Elm.Located
+                                    ( 4, 32 )
+                                    (Elm.ModuleName_
+                                        (Elm.UppercaseIdentifier "Hello")
+                                        []
+                                        Elm.NotTrailing
+                                    )
+                                    ( 4, 37 )
+                                )
+                                Elm.AliasNone
+                                Nothing
+                            ]
+                        )
+                    )
+                    (Parser.run Elm.elm source)
+        , Test.test "Module import declaration trailing" <|
+            \_ ->
+                let
+                    source =
+                        """
+                        module Ya exposing
+                            ( myValue
+                            ,
+                            )
+
+                        import Hello as H
+                        import World exposing (World(..), world)
+                        import Parser as P exposing ((|.))
+                        """
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.Elm
+                            (Just
+                                (Elm.ModuleDeclaration
+                                    (Elm.Located
+                                        ( 2, 32 )
+                                        (Elm.ModuleName_
+                                            (Elm.UppercaseIdentifier "Ya")
+                                            []
+                                            Elm.NotTrailing
+                                        )
+                                        ( 2, 34 )
+                                    )
+                                    (Elm.ExposingList
+                                        [ Elm.ExposedValue (Elm.LowercaseIdentifier "myValue")
+                                        ]
+                                        Elm.Trailing
+                                    )
+                                )
+                            )
+                            [ Elm.ModuleImport
+                                (Elm.Located
+                                    ( 7, 32 )
+                                    (Elm.ModuleName_
+                                        (Elm.UppercaseIdentifier "Hello")
+                                        []
+                                        Elm.NotTrailing
+                                    )
+                                    ( 7, 37 )
+                                )
+                                (Elm.Alias (Elm.UppercaseIdentifier "H"))
+                                Nothing
+                            , Elm.ModuleImport
+                                (Elm.Located
+                                    ( 8, 32 )
+                                    (Elm.ModuleName_
+                                        (Elm.UppercaseIdentifier "World")
+                                        []
+                                        Elm.NotTrailing
+                                    )
+                                    ( 8, 37 )
+                                )
+                                Elm.AliasNone
+                                (Just <|
+                                    Elm.ExposingList
+                                        [ Elm.ExposedType (Elm.UppercaseIdentifier "World")
+                                            Elm.ExposedConstructorsDotDot
+                                        , Elm.ExposedValue (Elm.LowercaseIdentifier "world")
+                                        ]
+                                        Elm.NotTrailing
+                                )
+                            , Elm.ModuleImport
+                                (Elm.Located
+                                    ( 9, 32 )
+                                    (Elm.ModuleName_
+                                        (Elm.UppercaseIdentifier "Parser")
+                                        []
+                                        Elm.NotTrailing
+                                    )
+                                    ( 9, 38 )
+                                )
+                                (Elm.Alias (Elm.UppercaseIdentifier "P"))
+                                (Just <|
+                                    Elm.ExposingList [ Elm.ExposedOperator Elm.ParseIgnore ]
+                                        Elm.NotTrailing
+                                )
+                            ]
+                        )
+                    )
+                    (Parser.run Elm.elm source)
         ]

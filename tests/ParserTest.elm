@@ -47,7 +47,11 @@ exposingListTests =
                     (Ok <|
                         Elm.ExposingList
                             [ Elm.ExposedType (Elm.UppercaseIdentifier "Hello")
-                                Elm.NoExposedConstructors
+                                (Elm.Located
+                                    ( 1, 7 )
+                                    Elm.NoExposedConstructors
+                                    ( 1, 7 )
+                                )
                             ]
                             Elm.NotTrailing
                     )
@@ -62,7 +66,11 @@ exposingListTests =
                     (Ok <|
                         Elm.ExposingList
                             [ Elm.ExposedType (Elm.UppercaseIdentifier "Hello")
-                                Elm.ExposedConstructorsDotDot
+                                (Elm.Located
+                                    ( 1, 7 )
+                                    Elm.ExposedConstructorsDotDot
+                                    ( 1, 11 )
+                                )
                             ]
                             Elm.NotTrailing
                     )
@@ -77,8 +85,13 @@ exposingListTests =
                     (Ok <|
                         Elm.ExposingList
                             [ Elm.ExposedType (Elm.UppercaseIdentifier "Hello")
-                                (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "World" ]
-                                    Elm.NotTrailing
+                                (Elm.Located
+                                    ( 1, 7 )
+                                    (Elm.ExposedConstructors
+                                        [ Elm.UppercaseIdentifier "World" ]
+                                        Elm.NotTrailing
+                                    )
+                                    ( 1, 14 )
                                 )
                             ]
                             Elm.NotTrailing
@@ -121,9 +134,13 @@ exposingListTests =
                             , Elm.ExposedValue (Elm.LowercaseIdentifier "myValue")
                             , Elm.ExposedType
                                 (Elm.UppercaseIdentifier "String")
-                                (Elm.ExposedConstructors
-                                    [ Elm.UppercaseIdentifier "Str" ]
-                                    Elm.NotTrailing
+                                (Elm.Located
+                                    ( 1, 23 )
+                                    (Elm.ExposedConstructors
+                                        [ Elm.UppercaseIdentifier "Str" ]
+                                        Elm.NotTrailing
+                                    )
+                                    ( 1, 28 )
                                 )
                             ]
                             Elm.NotTrailing
@@ -147,9 +164,13 @@ exposingListTests =
                             , Elm.ExposedValue (Elm.LowercaseIdentifier "myValue")
                             , Elm.ExposedType
                                 (Elm.UppercaseIdentifier "String")
-                                (Elm.ExposedConstructors
-                                    [ Elm.UppercaseIdentifier "Str" ]
-                                    Elm.NotTrailing
+                                (Elm.Located
+                                    ( 1, 23 )
+                                    (Elm.ExposedConstructors
+                                        [ Elm.UppercaseIdentifier "Str" ]
+                                        Elm.NotTrailing
+                                    )
+                                    ( 1, 28 )
                                 )
                             ]
                             Elm.Trailing
@@ -173,9 +194,13 @@ exposingListTests =
                             , Elm.ExposedValue (Elm.LowercaseIdentifier "myValue")
                             , Elm.ExposedType
                                 (Elm.UppercaseIdentifier "String")
-                                (Elm.ExposedConstructors
-                                    [ Elm.UppercaseIdentifier "Str" ]
-                                    Elm.NotTrailing
+                                (Elm.Located
+                                    ( 1, 25 )
+                                    (Elm.ExposedConstructors
+                                        [ Elm.UppercaseIdentifier "Str" ]
+                                        Elm.NotTrailing
+                                    )
+                                    ( 1, 30 )
                                 )
                             ]
                             Elm.TrailingInTheMiddle
@@ -199,9 +224,13 @@ exposingListTests =
                             , Elm.ExposedValue (Elm.LowercaseIdentifier "myValue")
                             , Elm.ExposedType
                                 (Elm.UppercaseIdentifier "String")
-                                (Elm.ExposedConstructors
-                                    [ Elm.UppercaseIdentifier "Str" ]
-                                    Elm.Trailing
+                                (Elm.Located
+                                    ( 1, 23 )
+                                    (Elm.ExposedConstructors
+                                        [ Elm.UppercaseIdentifier "Str" ]
+                                        Elm.Trailing
+                                    )
+                                    ( 1, 29 )
                                 )
                             ]
                             Elm.Trailing
@@ -453,7 +482,11 @@ exposedItemTests =
                 Expect.equal
                     (Ok <|
                         Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                            Elm.NoExposedConstructors
+                            (Elm.Located
+                                ( 1, 7 )
+                                Elm.NoExposedConstructors
+                                ( 1, 7 )
+                            )
                     )
                     (Parser.run Elm.exposedItem source)
         , Test.test "ExposedUnion with DoubleDot" <|
@@ -463,7 +496,14 @@ exposedItemTests =
                         "String(..)"
                 in
                 Expect.equal
-                    (Ok <| Elm.ExposedType (Elm.UppercaseIdentifier "String") Elm.ExposedConstructorsDotDot)
+                    (Ok <|
+                        Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                            (Elm.Located
+                                ( 1, 7 )
+                                Elm.ExposedConstructorsDotDot
+                                ( 1, 11 )
+                            )
+                    )
                     (Parser.run Elm.exposedItem source)
         , Test.test "ExposedUnion with Constructors" <|
             \_ ->
@@ -474,7 +514,14 @@ exposedItemTests =
                 Expect.equal
                     (Ok <|
                         Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                            (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
+                            (Elm.Located
+                                ( 1, 7 )
+                                (Elm.ExposedConstructors
+                                    [ Elm.UppercaseIdentifier "Str" ]
+                                    Elm.NotTrailing
+                                )
+                                ( 1, 12 )
+                            )
                     )
                     (Parser.run Elm.exposedItem source)
         , Test.test "ExposedUnion with Constructors trailing" <|
@@ -486,7 +533,14 @@ exposedItemTests =
                 Expect.equal
                     (Ok <|
                         Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                            (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.Trailing)
+                            (Elm.Located
+                                ( 1, 7 )
+                                (Elm.ExposedConstructors
+                                    [ Elm.UppercaseIdentifier "Str" ]
+                                    Elm.Trailing
+                                )
+                                ( 1, 14 )
+                            )
                     )
                     (Parser.run Elm.exposedItem source)
         , Test.test "ExposedUnion with Constructors missing parenthesis" <|
@@ -498,9 +552,13 @@ exposedItemTests =
                 Expect.equal
                     (Ok <|
                         Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                            (Elm.ExposedConstructors
-                                [ Elm.UppercaseIdentifier "Str" ]
-                                Elm.Trailing
+                            (Elm.Located
+                                ( 1, 7 )
+                                (Elm.ExposedConstructors
+                                    [ Elm.UppercaseIdentifier "Str" ]
+                                    Elm.Trailing
+                                )
+                                ( 1, 11 )
                             )
                     )
                     (Parser.run Elm.exposedItem source)
@@ -513,9 +571,13 @@ exposedItemTests =
                 Expect.equal
                     (Ok <|
                         Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                            (Elm.ExposedConstructors
-                                [ Elm.UppercaseIdentifier "Str" ]
-                                Elm.Trailing
+                            (Elm.Located
+                                ( 1, 7 )
+                                (Elm.ExposedConstructors
+                                    [ Elm.UppercaseIdentifier "Str" ]
+                                    Elm.Trailing
+                                )
+                                ( 1, 12 )
                             )
                     )
                     (Parser.run Elm.exposedItem source)
@@ -838,8 +900,20 @@ moduleDeclarationTests =
                             (Elm.ExposingList
                                 [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
-                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
+                                    (Elm.Located
+                                        ( 1, 7 )
+                                        (Elm.ExposedConstructors
+                                            [ Elm.UppercaseIdentifier "Str" ]
+                                            Elm.NotTrailing
+                                        )
+                                        ( 1, 7 )
+                                    )
+                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int")
+                                    (Elm.Located
+                                        ( 1, 7 )
+                                        Elm.ExposedConstructorsDotDot
+                                        ( 1, 7 )
+                                    )
                                 , Elm.ExposedOperator
                                     (Elm.Located
                                         ( 1, 1 )
@@ -878,8 +952,20 @@ moduleDeclarationTests =
                             (Elm.ExposingList
                                 [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
-                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
+                                    (Elm.Located
+                                        ( 1, 7 )
+                                        (Elm.ExposedConstructors
+                                            [ Elm.UppercaseIdentifier "Str" ]
+                                            Elm.NotTrailing
+                                        )
+                                        ( 1, 7 )
+                                    )
+                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int")
+                                    (Elm.Located
+                                        ( 1, 7 )
+                                        Elm.ExposedConstructorsDotDot
+                                        ( 1, 7 )
+                                    )
                                 , Elm.ExposedOperator
                                     (Elm.Located
                                         ( 1, 1 )
@@ -912,7 +998,14 @@ moduleDeclarationTests =
                             (Elm.ExposingList
                                 [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
+                                    (Elm.Located
+                                        ( 1, 7 )
+                                        (Elm.ExposedConstructors
+                                            [ Elm.UppercaseIdentifier "Str" ]
+                                            Elm.NotTrailing
+                                        )
+                                        ( 1, 7 )
+                                    )
                                 ]
                                 Elm.Trailing
                             )
@@ -945,8 +1038,20 @@ moduleDeclarationTests =
                             (Elm.ExposingList
                                 [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
-                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
+                                    (Elm.Located
+                                        ( 1, 7 )
+                                        (Elm.ExposedConstructors
+                                            [ Elm.UppercaseIdentifier "Str" ]
+                                            Elm.NotTrailing
+                                        )
+                                        ( 1, 7 )
+                                    )
+                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int")
+                                    (Elm.Located
+                                        ( 1, 7 )
+                                        Elm.ExposedConstructorsDotDot
+                                        ( 1, 7 )
+                                    )
                                 , Elm.ExposedOperator
                                     (Elm.Located
                                         ( 1, 1 )
@@ -979,7 +1084,14 @@ moduleDeclarationTests =
                             (Elm.ExposingList
                                 [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
+                                    (Elm.Located
+                                        ( 1, 7 )
+                                        (Elm.ExposedConstructors
+                                            [ Elm.UppercaseIdentifier "Str" ]
+                                            Elm.NotTrailing
+                                        )
+                                        ( 1, 7 )
+                                    )
                                 ]
                                 Elm.Trailing
                             )
@@ -1012,8 +1124,20 @@ moduleDeclarationTests =
                             (Elm.ExposingList
                                 [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
-                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
+                                    (Elm.Located
+                                        ( 1, 7 )
+                                        (Elm.ExposedConstructors
+                                            [ Elm.UppercaseIdentifier "Str" ]
+                                            Elm.NotTrailing
+                                        )
+                                        ( 1, 7 )
+                                    )
+                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int")
+                                    (Elm.Located
+                                        ( 1, 7 )
+                                        Elm.ExposedConstructorsDotDot
+                                        ( 1, 7 )
+                                    )
                                 , Elm.ExposedOperator
                                     (Elm.Located
                                         ( 1, 1 )
@@ -1046,7 +1170,14 @@ moduleDeclarationTests =
                             (Elm.ExposingList
                                 [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
+                                    (Elm.Located
+                                        ( 1, 7 )
+                                        (Elm.ExposedConstructors
+                                            [ Elm.UppercaseIdentifier "Str" ]
+                                            Elm.NotTrailing
+                                        )
+                                        ( 1, 7 )
+                                    )
                                 ]
                                 Elm.Trailing
                             )
@@ -1078,8 +1209,20 @@ moduleDeclarationTests =
                             (Elm.ExposingList
                                 [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
                                 , Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ] Elm.NotTrailing)
-                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
+                                    (Elm.Located
+                                        ( 1, 7 )
+                                        (Elm.ExposedConstructors
+                                            [ Elm.UppercaseIdentifier "Str" ]
+                                            Elm.NotTrailing
+                                        )
+                                        ( 1, 7 )
+                                    )
+                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int")
+                                    (Elm.Located
+                                        ( 1, 7 )
+                                        Elm.ExposedConstructorsDotDot
+                                        ( 1, 7 )
+                                    )
                                 , Elm.ExposedOperator
                                     (Elm.Located
                                         ( 1, 1 )
@@ -1431,7 +1574,11 @@ sourceTests =
                                 (Just <|
                                     Elm.ExposingList
                                         [ Elm.ExposedType (Elm.UppercaseIdentifier "World")
-                                            Elm.ExposedConstructorsDotDot
+                                            (Elm.Located
+                                                ( 8, 53 )
+                                                Elm.ExposedConstructorsDotDot
+                                                ( 8, 57 )
+                                            )
                                         , Elm.ExposedValue (Elm.LowercaseIdentifier "world")
                                         ]
                                         Elm.NotTrailing

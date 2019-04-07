@@ -1,7 +1,8 @@
 module Elm.Parser exposing
     ( Alias(..)
     , Elm(..)
-    , ExposedCustomTypeConstructors(..)
+    , ExposedCustomTypeConstructors
+    , ExposedCustomTypeConstructors_(..)
     , ExposedItem(..)
     , ExposingList(..)
     , Identifier(..)
@@ -228,7 +229,11 @@ type ExposedItem
     | ExposedOperator Operator
 
 
-type ExposedCustomTypeConstructors
+type alias ExposedCustomTypeConstructors =
+    Located ExposedCustomTypeConstructors_
+
+
+type ExposedCustomTypeConstructors_
     = ExposedConstructors (List Identifier) Trailing
     | ExposedConstructorsDotDot
     | NoExposedConstructors
@@ -240,42 +245,48 @@ exposedItem =
         [ lowercaseIdentifier |> Parser.map ExposedValue
         , Parser.succeed (\ident constructors -> ExposedType ident constructors)
             |= uppercaseIdentifier
-            |= Parser.oneOf
-                [ Parser.succeed
-                    (\result parenTrailing ->
-                        case ( result, parenTrailing ) of
-                            ( ExposedConstructors exposed NotTrailing, Trailing ) ->
-                                ExposedConstructors exposed parenTrailing
+            |= (Parser.oneOf
+                    [ Parser.succeed
+                        (\result parenTrailing ->
+                            case ( result, parenTrailing ) of
+                                ( ExposedConstructors exposed NotTrailing, Trailing ) ->
+                                    ExposedConstructors exposed parenTrailing
 
-                            _ ->
-                                result
-                    )
-                    |. chompChar '('
-                    |. Parser.spaces
-                    |= Parser.oneOf
-                        [ Parser.succeed ExposedConstructorsDotDot
-                            |. Parser.token ".."
-                        , sequence
-                            { subParser = uppercaseIdentifier
-                            , separator = ','
-                            , allowSpaces = True
-                            }
-                            |> Parser.map
-                                (\( constructors, trailing ) ->
-                                    ExposedConstructors constructors trailing
-                                )
-                        ]
-                    |= Parser.oneOf
-                        [ chompChar ')' |> Parser.map (\() -> NotTrailing)
-                        , Parser.succeed Trailing
-                        ]
-                , Parser.succeed NoExposedConstructors
-                ]
+                                _ ->
+                                    result
+                        )
+                        |. chompChar '('
+                        |. Parser.spaces
+                        |= Parser.oneOf
+                            [ Parser.succeed ExposedConstructorsDotDot
+                                |. Parser.token ".."
+                            , sequence
+                                { subParser = uppercaseIdentifier
+                                , separator = ','
+                                , allowSpaces = True
+                                }
+                                |> Parser.map
+                                    (\( constructors, trailing ) ->
+                                        ExposedConstructors constructors trailing
+                                    )
+                            ]
+                        |= Parser.oneOf
+                            [ chompChar ')' |> Parser.map (\() -> NotTrailing)
+                            , Parser.succeed Trailing
+                            ]
+                    , Parser.succeed NoExposedConstructors
+                    ]
+                    |> located
+               )
         , Parser.succeed ExposedOperator
             |. chompChar '('
             |= operator
             |. chompChar ')'
         ]
+
+
+
+-- Operators --
 
 
 type alias Operator =

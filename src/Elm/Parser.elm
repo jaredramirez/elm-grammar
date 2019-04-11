@@ -5,7 +5,8 @@ module Elm.Parser exposing
     , ExposedCustomTypeConstructors_(..)
     , ExposedItem
     , ExposedItem_(..)
-    , ExposingList(..)
+    , ExposingList
+    , ExposingList_(..)
     , Identifier(..)
     , Located
     , ModuleDeclaration(..)
@@ -185,7 +186,11 @@ moduleImport =
 -- Exposing List --
 
 
-type ExposingList
+type alias ExposingList =
+    Located ExposingList_
+
+
+type ExposingList_
     = ExposingList (List ExposedItem) Trailing
     | ExposingListDoubleDot
 
@@ -222,6 +227,7 @@ exposingList =
                 , Parser.succeed Trailing
                 ]
         ]
+        |> located
 
 
 type alias ExposedItem =

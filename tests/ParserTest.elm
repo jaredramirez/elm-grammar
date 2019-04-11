@@ -159,6 +159,180 @@ moduleNameTests =
         ]
 
 
+operatorTests : Test.Test
+operatorTests =
+    Test.describe "Operator Tests"
+        [ Test.test "++" <|
+            \_ ->
+                let
+                    source =
+                        "++"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.PlusPlus
+                            ( 1, 3 )
+                    )
+                    (Parser.run Elm.operator source)
+        , Test.test "+" <|
+            \_ ->
+                let
+                    source =
+                        "+"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.Plus
+                            ( 1, 2 )
+                    )
+                    (Parser.run Elm.operator source)
+        , Test.test "-" <|
+            \_ ->
+                let
+                    source =
+                        "-"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.Minus
+                            ( 1, 2 )
+                    )
+                    (Parser.run Elm.operator source)
+        , Test.test "*" <|
+            \_ ->
+                let
+                    source =
+                        "*"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.Multiply
+                            ( 1, 2 )
+                    )
+                    (Parser.run Elm.operator source)
+        , Test.test "/" <|
+            \_ ->
+                let
+                    source =
+                        "/"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.DivideFloat
+                            ( 1, 2 )
+                    )
+                    (Parser.run Elm.operator source)
+        , Test.test "//" <|
+            \_ ->
+                let
+                    source =
+                        "//"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.DivideInt
+                            ( 1, 3 )
+                    )
+                    (Parser.run Elm.operator source)
+        , Test.test "|>" <|
+            \_ ->
+                let
+                    source =
+                        "|>"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.RightPipe
+                            ( 1, 3 )
+                    )
+                    (Parser.run Elm.operator source)
+        , Test.test "<|" <|
+            \_ ->
+                let
+                    source =
+                        "<|"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.LeftPipe
+                            ( 1, 3 )
+                    )
+                    (Parser.run Elm.operator source)
+        , Test.test "|=" <|
+            \_ ->
+                let
+                    source =
+                        "|="
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.ParseKeep
+                            ( 1, 3 )
+                    )
+                    (Parser.run Elm.operator source)
+        , Test.test "|." <|
+            \_ ->
+                let
+                    source =
+                        "|."
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.ParseIgnore
+                            ( 1, 3 )
+                    )
+                    (Parser.run Elm.operator source)
+        , Test.test ">=" <|
+            \_ ->
+                let
+                    source =
+                        ">="
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.GreaterThan
+                            ( 1, 3 )
+                    )
+                    (Parser.run Elm.operator source)
+        , Test.test "<=" <|
+            \_ ->
+                let
+                    source =
+                        "<="
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.Located
+                            ( 1, 1 )
+                            Elm.LessThan
+                            ( 1, 3 )
+                    )
+                    (Parser.run Elm.operator source)
+        ]
+
+
 exposedItemTests : Test.Test
 exposedItemTests =
     Test.describe "Exposed Item Tests"
@@ -338,10 +512,13 @@ exposingListTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposingList
-                            [ Elm.Located ( 1, 2 ) (Elm.ExposedValue (Elm.LowercaseIdentifier "hello")) ( 1, 7 )
-                            ]
-                            Elm.NotTrailing
+                        Elm.Located ( 1, 1 )
+                            (Elm.ExposingList
+                                [ Elm.Located ( 1, 2 ) (Elm.ExposedValue (Elm.LowercaseIdentifier "hello")) ( 1, 7 )
+                                ]
+                                Elm.NotTrailing
+                            )
+                            ( 1, 8 )
                     )
                     (Parser.run Elm.exposingList source)
         , Test.test "Exposing type opaque" <|
@@ -352,18 +529,21 @@ exposingListTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposingList
-                            [ Elm.Located ( 1, 2 )
-                                (Elm.ExposedType (Elm.UppercaseIdentifier "Hello")
-                                    (Elm.Located
-                                        ( 1, 7 )
-                                        Elm.NoExposedConstructors
-                                        ( 1, 7 )
+                        Elm.Located ( 1, 1 )
+                            (Elm.ExposingList
+                                [ Elm.Located ( 1, 2 )
+                                    (Elm.ExposedType (Elm.UppercaseIdentifier "Hello")
+                                        (Elm.Located
+                                            ( 1, 7 )
+                                            Elm.NoExposedConstructors
+                                            ( 1, 7 )
+                                        )
                                     )
-                                )
-                                ( 1, 7 )
-                            ]
-                            Elm.NotTrailing
+                                    ( 1, 7 )
+                                ]
+                                Elm.NotTrailing
+                            )
+                            ( 1, 8 )
                     )
                     (Parser.run Elm.exposingList source)
         , Test.test "Exposing type all constructors" <|
@@ -374,18 +554,21 @@ exposingListTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposingList
-                            [ Elm.Located ( 1, 2 )
-                                (Elm.ExposedType (Elm.UppercaseIdentifier "Hello")
-                                    (Elm.Located
-                                        ( 1, 7 )
-                                        Elm.ExposedConstructorsDotDot
-                                        ( 1, 11 )
+                        Elm.Located ( 1, 1 )
+                            (Elm.ExposingList
+                                [ Elm.Located ( 1, 2 )
+                                    (Elm.ExposedType (Elm.UppercaseIdentifier "Hello")
+                                        (Elm.Located
+                                            ( 1, 7 )
+                                            Elm.ExposedConstructorsDotDot
+                                            ( 1, 11 )
+                                        )
                                     )
-                                )
-                                ( 1, 11 )
-                            ]
-                            Elm.NotTrailing
+                                    ( 1, 11 )
+                                ]
+                                Elm.NotTrailing
+                            )
+                            ( 1, 12 )
                     )
                     (Parser.run Elm.exposingList source)
         , Test.test "Exposing type some constructors" <|
@@ -396,21 +579,24 @@ exposingListTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposingList
-                            [ Elm.Located ( 1, 2 )
-                                (Elm.ExposedType (Elm.UppercaseIdentifier "Hello")
-                                    (Elm.Located
-                                        ( 1, 7 )
-                                        (Elm.ExposedConstructors
-                                            [ Elm.UppercaseIdentifier "World" ]
-                                            Elm.NotTrailing
+                        Elm.Located ( 1, 1 )
+                            (Elm.ExposingList
+                                [ Elm.Located ( 1, 2 )
+                                    (Elm.ExposedType (Elm.UppercaseIdentifier "Hello")
+                                        (Elm.Located
+                                            ( 1, 7 )
+                                            (Elm.ExposedConstructors
+                                                [ Elm.UppercaseIdentifier "World" ]
+                                                Elm.NotTrailing
+                                            )
+                                            ( 1, 14 )
                                         )
-                                        ( 1, 14 )
                                     )
-                                )
-                                ( 1, 14 )
-                            ]
-                            Elm.NotTrailing
+                                    ( 1, 14 )
+                                ]
+                                Elm.NotTrailing
+                            )
+                            ( 1, 15 )
                     )
                     (Parser.run Elm.exposingList source)
         , Test.test "Exposing operator" <|
@@ -421,18 +607,21 @@ exposingListTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposingList
-                            [ Elm.Located ( 1, 2 )
-                                (Elm.ExposedOperator
-                                    (Elm.Located
-                                        ( 1, 3 )
-                                        Elm.PlusPlus
-                                        ( 1, 5 )
+                        Elm.Located ( 1, 1 )
+                            (Elm.ExposingList
+                                [ Elm.Located ( 1, 2 )
+                                    (Elm.ExposedOperator
+                                        (Elm.Located
+                                            ( 1, 3 )
+                                            Elm.PlusPlus
+                                            ( 1, 5 )
+                                        )
                                     )
-                                )
-                                ( 1, 6 )
-                            ]
-                            Elm.NotTrailing
+                                    ( 1, 6 )
+                                ]
+                                Elm.NotTrailing
+                            )
+                            ( 1, 7 )
                     )
                     (Parser.run Elm.exposingList source)
         , Test.test "Exposing many" <|
@@ -443,34 +632,37 @@ exposingListTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposingList
-                            [ Elm.Located ( 1, 2 )
-                                (Elm.ExposedOperator
-                                    (Elm.Located
-                                        ( 1, 3 )
-                                        Elm.PlusPlus
-                                        ( 1, 5 )
-                                    )
-                                )
-                                ( 1, 6 )
-                            , Elm.Located ( 1, 8 )
-                                (Elm.ExposedValue (Elm.LowercaseIdentifier "myValue"))
-                                ( 1, 15 )
-                            , Elm.Located ( 1, 17 )
-                                (Elm.ExposedType
-                                    (Elm.UppercaseIdentifier "String")
-                                    (Elm.Located
-                                        ( 1, 23 )
-                                        (Elm.ExposedConstructors
-                                            [ Elm.UppercaseIdentifier "Str" ]
-                                            Elm.NotTrailing
+                        Elm.Located ( 1, 1 )
+                            (Elm.ExposingList
+                                [ Elm.Located ( 1, 2 )
+                                    (Elm.ExposedOperator
+                                        (Elm.Located
+                                            ( 1, 3 )
+                                            Elm.PlusPlus
+                                            ( 1, 5 )
                                         )
-                                        ( 1, 28 )
                                     )
-                                )
-                                ( 1, 28 )
-                            ]
-                            Elm.NotTrailing
+                                    ( 1, 6 )
+                                , Elm.Located ( 1, 8 )
+                                    (Elm.ExposedValue (Elm.LowercaseIdentifier "myValue"))
+                                    ( 1, 15 )
+                                , Elm.Located ( 1, 17 )
+                                    (Elm.ExposedType
+                                        (Elm.UppercaseIdentifier "String")
+                                        (Elm.Located
+                                            ( 1, 23 )
+                                            (Elm.ExposedConstructors
+                                                [ Elm.UppercaseIdentifier "Str" ]
+                                                Elm.NotTrailing
+                                            )
+                                            ( 1, 28 )
+                                        )
+                                    )
+                                    ( 1, 28 )
+                                ]
+                                Elm.NotTrailing
+                            )
+                            ( 1, 29 )
                     )
                     (Parser.run Elm.exposingList source)
         , Test.test "Exposing many trailing" <|
@@ -481,34 +673,37 @@ exposingListTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposingList
-                            [ Elm.Located ( 1, 2 )
-                                (Elm.ExposedOperator
-                                    (Elm.Located
-                                        ( 1, 3 )
-                                        Elm.PlusPlus
-                                        ( 1, 5 )
-                                    )
-                                )
-                                ( 1, 6 )
-                            , Elm.Located ( 1, 8 )
-                                (Elm.ExposedValue (Elm.LowercaseIdentifier "myValue"))
-                                ( 1, 15 )
-                            , Elm.Located ( 1, 17 )
-                                (Elm.ExposedType
-                                    (Elm.UppercaseIdentifier "String")
-                                    (Elm.Located
-                                        ( 1, 23 )
-                                        (Elm.ExposedConstructors
-                                            [ Elm.UppercaseIdentifier "Str" ]
-                                            Elm.NotTrailing
+                        Elm.Located ( 1, 1 )
+                            (Elm.ExposingList
+                                [ Elm.Located ( 1, 2 )
+                                    (Elm.ExposedOperator
+                                        (Elm.Located
+                                            ( 1, 3 )
+                                            Elm.PlusPlus
+                                            ( 1, 5 )
                                         )
-                                        ( 1, 28 )
                                     )
-                                )
-                                ( 1, 28 )
-                            ]
-                            Elm.Trailing
+                                    ( 1, 6 )
+                                , Elm.Located ( 1, 8 )
+                                    (Elm.ExposedValue (Elm.LowercaseIdentifier "myValue"))
+                                    ( 1, 15 )
+                                , Elm.Located ( 1, 17 )
+                                    (Elm.ExposedType
+                                        (Elm.UppercaseIdentifier "String")
+                                        (Elm.Located
+                                            ( 1, 23 )
+                                            (Elm.ExposedConstructors
+                                                [ Elm.UppercaseIdentifier "Str" ]
+                                                Elm.NotTrailing
+                                            )
+                                            ( 1, 28 )
+                                        )
+                                    )
+                                    ( 1, 28 )
+                                ]
+                                Elm.Trailing
+                            )
+                            ( 1, 30 )
                     )
                     (Parser.run Elm.exposingList source)
         , Test.test "Exposing many trailing in the middle" <|
@@ -519,34 +714,37 @@ exposingListTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposingList
-                            [ Elm.Located ( 1, 2 )
-                                (Elm.ExposedOperator
-                                    (Elm.Located
-                                        ( 1, 3 )
-                                        Elm.PlusPlus
-                                        ( 1, 5 )
-                                    )
-                                )
-                                ( 1, 6 )
-                            , Elm.Located ( 1, 8 )
-                                (Elm.ExposedValue (Elm.LowercaseIdentifier "myValue"))
-                                ( 1, 15 )
-                            , Elm.Located ( 1, 19 )
-                                (Elm.ExposedType
-                                    (Elm.UppercaseIdentifier "String")
-                                    (Elm.Located
-                                        ( 1, 25 )
-                                        (Elm.ExposedConstructors
-                                            [ Elm.UppercaseIdentifier "Str" ]
-                                            Elm.NotTrailing
+                        Elm.Located ( 1, 1 )
+                            (Elm.ExposingList
+                                [ Elm.Located ( 1, 2 )
+                                    (Elm.ExposedOperator
+                                        (Elm.Located
+                                            ( 1, 3 )
+                                            Elm.PlusPlus
+                                            ( 1, 5 )
                                         )
-                                        ( 1, 30 )
                                     )
-                                )
-                                ( 1, 30 )
-                            ]
-                            Elm.TrailingInTheMiddle
+                                    ( 1, 6 )
+                                , Elm.Located ( 1, 8 )
+                                    (Elm.ExposedValue (Elm.LowercaseIdentifier "myValue"))
+                                    ( 1, 15 )
+                                , Elm.Located ( 1, 19 )
+                                    (Elm.ExposedType
+                                        (Elm.UppercaseIdentifier "String")
+                                        (Elm.Located
+                                            ( 1, 25 )
+                                            (Elm.ExposedConstructors
+                                                [ Elm.UppercaseIdentifier "Str" ]
+                                                Elm.NotTrailing
+                                            )
+                                            ( 1, 30 )
+                                        )
+                                    )
+                                    ( 1, 30 )
+                                ]
+                                Elm.TrailingInTheMiddle
+                            )
+                            ( 1, 31 )
                     )
                     (Parser.run Elm.exposingList source)
         , Test.test "Exposing many trailing trailing" <|
@@ -557,34 +755,37 @@ exposingListTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposingList
-                            [ Elm.Located ( 1, 2 )
-                                (Elm.ExposedOperator
-                                    (Elm.Located
-                                        ( 1, 3 )
-                                        Elm.PlusPlus
-                                        ( 1, 5 )
-                                    )
-                                )
-                                ( 1, 6 )
-                            , Elm.Located ( 1, 8 )
-                                (Elm.ExposedValue (Elm.LowercaseIdentifier "myValue"))
-                                ( 1, 15 )
-                            , Elm.Located ( 1, 17 )
-                                (Elm.ExposedType
-                                    (Elm.UppercaseIdentifier "String")
-                                    (Elm.Located
-                                        ( 1, 23 )
-                                        (Elm.ExposedConstructors
-                                            [ Elm.UppercaseIdentifier "Str" ]
-                                            Elm.Trailing
+                        Elm.Located ( 1, 1 )
+                            (Elm.ExposingList
+                                [ Elm.Located ( 1, 2 )
+                                    (Elm.ExposedOperator
+                                        (Elm.Located
+                                            ( 1, 3 )
+                                            Elm.PlusPlus
+                                            ( 1, 5 )
                                         )
-                                        ( 1, 29 )
                                     )
-                                )
-                                ( 1, 29 )
-                            ]
-                            Elm.Trailing
+                                    ( 1, 6 )
+                                , Elm.Located ( 1, 8 )
+                                    (Elm.ExposedValue (Elm.LowercaseIdentifier "myValue"))
+                                    ( 1, 15 )
+                                , Elm.Located ( 1, 17 )
+                                    (Elm.ExposedType
+                                        (Elm.UppercaseIdentifier "String")
+                                        (Elm.Located
+                                            ( 1, 23 )
+                                            (Elm.ExposedConstructors
+                                                [ Elm.UppercaseIdentifier "Str" ]
+                                                Elm.Trailing
+                                            )
+                                            ( 1, 29 )
+                                        )
+                                    )
+                                    ( 1, 29 )
+                                ]
+                                Elm.Trailing
+                            )
+                            ( 1, 31 )
                     )
                     (Parser.run Elm.exposingList source)
         , Test.test "Exposing many missing parenthesis" <|
@@ -595,18 +796,21 @@ exposingListTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposingList
-                            [ Elm.Located ( 1, 2 )
-                                (Elm.ExposedOperator
-                                    (Elm.Located
-                                        ( 1, 3 )
-                                        Elm.PlusPlus
-                                        ( 1, 5 )
+                        Elm.Located ( 1, 1 )
+                            (Elm.ExposingList
+                                [ Elm.Located ( 1, 2 )
+                                    (Elm.ExposedOperator
+                                        (Elm.Located
+                                            ( 1, 3 )
+                                            Elm.PlusPlus
+                                            ( 1, 5 )
+                                        )
                                     )
-                                )
-                                ( 1, 6 )
-                            ]
-                            Elm.Trailing
+                                    ( 1, 6 )
+                                ]
+                                Elm.Trailing
+                            )
+                            ( 1, 6 )
                     )
                     (Parser.run Elm.exposingList source)
         , Test.test "Exposing many missing parenthesis and trailing" <|
@@ -617,18 +821,21 @@ exposingListTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposingList
-                            [ Elm.Located ( 1, 2 )
-                                (Elm.ExposedOperator
-                                    (Elm.Located
-                                        ( 1, 3 )
-                                        Elm.PlusPlus
-                                        ( 1, 5 )
+                        Elm.Located ( 1, 1 )
+                            (Elm.ExposingList
+                                [ Elm.Located ( 1, 2 )
+                                    (Elm.ExposedOperator
+                                        (Elm.Located
+                                            ( 1, 3 )
+                                            Elm.PlusPlus
+                                            ( 1, 5 )
+                                        )
                                     )
-                                )
-                                ( 1, 6 )
-                            ]
-                            Elm.Trailing
+                                    ( 1, 6 )
+                                ]
+                                Elm.Trailing
+                            )
+                            ( 1, 7 )
                     )
                     (Parser.run Elm.exposingList source)
         , Test.test "Exposing multiline" <|
@@ -642,21 +849,24 @@ exposingListTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposingList
-                            [ Elm.Located ( 1, 3 )
-                                (Elm.ExposedOperator
-                                    (Elm.Located
-                                        ( 1, 4 )
-                                        Elm.PlusPlus
-                                        ( 1, 6 )
+                        Elm.Located ( 1, 1 )
+                            (Elm.ExposingList
+                                [ Elm.Located ( 1, 3 )
+                                    (Elm.ExposedOperator
+                                        (Elm.Located
+                                            ( 1, 4 )
+                                            Elm.PlusPlus
+                                            ( 1, 6 )
+                                        )
                                     )
-                                )
-                                ( 1, 7 )
-                            , Elm.Located ( 2, 30 )
-                                (Elm.ExposedValue (Elm.LowercaseIdentifier "hello"))
-                                ( 2, 35 )
-                            ]
-                            Elm.NotTrailing
+                                    ( 1, 7 )
+                                , Elm.Located ( 2, 30 )
+                                    (Elm.ExposedValue (Elm.LowercaseIdentifier "hello"))
+                                    ( 2, 35 )
+                                ]
+                                Elm.NotTrailing
+                            )
+                            ( 3, 29 )
                     )
                     (Parser.run Elm.exposingList source)
         , Test.test "Exposing multiline in the middle" <|
@@ -670,729 +880,26 @@ exposingListTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposingList
-                            [ Elm.Located ( 1, 3 )
-                                (Elm.ExposedOperator
-                                    (Elm.Located
-                                        ( 1, 4 )
-                                        Elm.PlusPlus
-                                        ( 1, 6 )
+                        Elm.Located ( 1, 1 )
+                            (Elm.ExposingList
+                                [ Elm.Located ( 1, 3 )
+                                    (Elm.ExposedOperator
+                                        (Elm.Located
+                                            ( 1, 4 )
+                                            Elm.PlusPlus
+                                            ( 1, 6 )
+                                        )
                                     )
-                                )
-                                ( 1, 7 )
-                            , Elm.Located ( 2, 30 )
-                                (Elm.ExposedValue (Elm.LowercaseIdentifier "hello"))
-                                ( 2, 35 )
-                            ]
-                            Elm.TrailingInTheMiddle
+                                    ( 1, 7 )
+                                , Elm.Located ( 2, 30 )
+                                    (Elm.ExposedValue (Elm.LowercaseIdentifier "hello"))
+                                    ( 2, 35 )
+                                ]
+                                Elm.TrailingInTheMiddle
+                            )
+                            ( 3, 29 )
                     )
                     (Parser.run Elm.exposingList source)
-        ]
-
-
-operatorTests : Test.Test
-operatorTests =
-    Test.describe "Operator Tests"
-        [ Test.test "++" <|
-            \_ ->
-                let
-                    source =
-                        "++"
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.Located
-                            ( 1, 1 )
-                            Elm.PlusPlus
-                            ( 1, 3 )
-                    )
-                    (Parser.run Elm.operator source)
-        , Test.test "+" <|
-            \_ ->
-                let
-                    source =
-                        "+"
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.Located
-                            ( 1, 1 )
-                            Elm.Plus
-                            ( 1, 2 )
-                    )
-                    (Parser.run Elm.operator source)
-        , Test.test "-" <|
-            \_ ->
-                let
-                    source =
-                        "-"
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.Located
-                            ( 1, 1 )
-                            Elm.Minus
-                            ( 1, 2 )
-                    )
-                    (Parser.run Elm.operator source)
-        , Test.test "*" <|
-            \_ ->
-                let
-                    source =
-                        "*"
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.Located
-                            ( 1, 1 )
-                            Elm.Multiply
-                            ( 1, 2 )
-                    )
-                    (Parser.run Elm.operator source)
-        , Test.test "/" <|
-            \_ ->
-                let
-                    source =
-                        "/"
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.Located
-                            ( 1, 1 )
-                            Elm.DivideFloat
-                            ( 1, 2 )
-                    )
-                    (Parser.run Elm.operator source)
-        , Test.test "//" <|
-            \_ ->
-                let
-                    source =
-                        "//"
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.Located
-                            ( 1, 1 )
-                            Elm.DivideInt
-                            ( 1, 3 )
-                    )
-                    (Parser.run Elm.operator source)
-        , Test.test "|>" <|
-            \_ ->
-                let
-                    source =
-                        "|>"
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.Located
-                            ( 1, 1 )
-                            Elm.RightPipe
-                            ( 1, 3 )
-                    )
-                    (Parser.run Elm.operator source)
-        , Test.test "<|" <|
-            \_ ->
-                let
-                    source =
-                        "<|"
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.Located
-                            ( 1, 1 )
-                            Elm.LeftPipe
-                            ( 1, 3 )
-                    )
-                    (Parser.run Elm.operator source)
-        , Test.test "|=" <|
-            \_ ->
-                let
-                    source =
-                        "|="
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.Located
-                            ( 1, 1 )
-                            Elm.ParseKeep
-                            ( 1, 3 )
-                    )
-                    (Parser.run Elm.operator source)
-        , Test.test "|." <|
-            \_ ->
-                let
-                    source =
-                        "|."
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.Located
-                            ( 1, 1 )
-                            Elm.ParseIgnore
-                            ( 1, 3 )
-                    )
-                    (Parser.run Elm.operator source)
-        , Test.test ">=" <|
-            \_ ->
-                let
-                    source =
-                        ">="
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.Located
-                            ( 1, 1 )
-                            Elm.GreaterThan
-                            ( 1, 3 )
-                    )
-                    (Parser.run Elm.operator source)
-        , Test.test "<=" <|
-            \_ ->
-                let
-                    source =
-                        "<="
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.Located
-                            ( 1, 1 )
-                            Elm.LessThan
-                            ( 1, 3 )
-                    )
-                    (Parser.run Elm.operator source)
-        ]
-
-
-moduleDeclarationTests : Test.Test
-moduleDeclarationTests =
-    Test.describe "Module Declaration Testz"
-        [ Test.test "Module name declaration" <|
-            \_ ->
-                let
-                    source =
-                        "module Hello"
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.ModuleDeclarationPartial
-                            (Elm.Located
-                                ( 0, 0 )
-                                (Elm.ModuleName_
-                                    (Elm.UppercaseIdentifier "Hello")
-                                    []
-                                    Elm.NotTrailing
-                                )
-                                ( 0, 0 )
-                            )
-                    )
-                    (Parser.run Elm.moduleDeclaration source)
-        , Test.test "Module name declaration with capital" <|
-            \_ ->
-                let
-                    source =
-                        "Module Hello"
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.ModuleDeclarationPartial
-                            (Elm.Located
-                                ( 0, 0 )
-                                (Elm.ModuleName_
-                                    (Elm.UppercaseIdentifier "Hello")
-                                    []
-                                    Elm.NotTrailing
-                                )
-                                ( 0, 0 )
-                            )
-                    )
-                    (Parser.run Elm.moduleDeclaration source)
-        , Test.test "Module declaration unfinished exposing" <|
-            \_ ->
-                let
-                    source =
-                        "module Hello exposing"
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.ModuleDeclarationPartial
-                            (Elm.Located
-                                ( 0, 0 )
-                                (Elm.ModuleName_
-                                    (Elm.UppercaseIdentifier "Hello")
-                                    []
-                                    Elm.NotTrailing
-                                )
-                                ( 0, 0 )
-                            )
-                    )
-                    (Parser.run Elm.moduleDeclaration source)
-        , Test.test "Module declaration with open parenthesis" <|
-            \_ ->
-                let
-                    source =
-                        "module Hello exposing ("
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.ModuleDeclaration
-                            (Elm.Located
-                                ( 0, 0 )
-                                (Elm.ModuleName_
-                                    (Elm.UppercaseIdentifier "Hello")
-                                    []
-                                    Elm.NotTrailing
-                                )
-                                ( 0, 0 )
-                            )
-                            (Elm.ExposingList [] Elm.Trailing)
-                    )
-                    (Parser.run Elm.moduleDeclaration source)
-        , Test.test "Module declaration with exposing nothing" <|
-            \_ ->
-                let
-                    source =
-                        "module Hello exposing ()"
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.ModuleDeclaration
-                            (Elm.Located
-                                ( 0, 0 )
-                                (Elm.ModuleName_
-                                    (Elm.UppercaseIdentifier "Hello")
-                                    []
-                                    Elm.NotTrailing
-                                )
-                                ( 0, 0 )
-                            )
-                            (Elm.ExposingList [] Elm.NotTrailing)
-                    )
-                    (Parser.run Elm.moduleDeclaration source)
-        , Test.test "Module declaration with exposing something" <|
-            \_ ->
-                let
-                    source =
-                        "module Hello exposing (value, String(Str), Int(..), (|>))"
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.ModuleDeclaration
-                            (Elm.Located ( 0, 0 )
-                                (Elm.ModuleName_
-                                    (Elm.UppercaseIdentifier "Hello")
-                                    []
-                                    Elm.NotTrailing
-                                )
-                                ( 0, 0 )
-                            )
-                            (Elm.ExposingList
-                                [ Elm.Located ( 0, 0 )
-                                    (Elm.ExposedValue (Elm.LowercaseIdentifier "value"))
-                                    ( 1, 3 )
-                                , Elm.Located ( 0, 0 )
-                                    (Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                        (Elm.Located
-                                            ( 1, 7 )
-                                            (Elm.ExposedConstructors
-                                                [ Elm.UppercaseIdentifier "Str" ]
-                                                Elm.NotTrailing
-                                            )
-                                            ( 1, 7 )
-                                        )
-                                    )
-                                    ( 1, 3 )
-                                , Elm.Located ( 0, 0 )
-                                    (Elm.ExposedType (Elm.UppercaseIdentifier "Int")
-                                        (Elm.Located
-                                            ( 1, 7 )
-                                            Elm.ExposedConstructorsDotDot
-                                            ( 1, 7 )
-                                        )
-                                    )
-                                    ( 1, 3 )
-                                , Elm.Located ( 0, 0 )
-                                    (Elm.ExposedOperator
-                                        (Elm.Located
-                                            ( 1, 1 )
-                                            Elm.RightPipe
-                                            ( 1, 3 )
-                                        )
-                                    )
-                                    ( 1, 3 )
-                                ]
-                                Elm.NotTrailing
-                            )
-                    )
-                    (Parser.run Elm.moduleDeclaration source)
-        , Test.test "Module declaration with exposing something multiline" <|
-            \_ ->
-                let
-                    source =
-                        """module Hello exposing
-                         ( value
-                         , String(Str)
-                         , Int(..)
-                         , (|>)
-                         )
-                        """
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.ModuleDeclaration
-                            (Elm.Located
-                                ( 0, 0 )
-                                (Elm.ModuleName_
-                                    (Elm.UppercaseIdentifier "Hello")
-                                    []
-                                    Elm.NotTrailing
-                                )
-                                ( 0, 0 )
-                            )
-                            (Elm.ExposingList
-                                [ Elm.Located ( 0, 0 )
-                                    (Elm.ExposedValue (Elm.LowercaseIdentifier "value"))
-                                    ( 1, 3 )
-                                , Elm.Located ( 0, 0 )
-                                    (Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                        (Elm.Located
-                                            ( 1, 7 )
-                                            (Elm.ExposedConstructors
-                                                [ Elm.UppercaseIdentifier "Str" ]
-                                                Elm.NotTrailing
-                                            )
-                                            ( 1, 7 )
-                                        )
-                                    )
-                                    ( 1, 3 )
-                                , Elm.Located ( 0, 0 )
-                                    (Elm.ExposedType (Elm.UppercaseIdentifier "Int")
-                                        (Elm.Located
-                                            ( 1, 7 )
-                                            Elm.ExposedConstructorsDotDot
-                                            ( 1, 7 )
-                                        )
-                                    )
-                                    ( 1, 3 )
-                                , Elm.Located ( 0, 0 )
-                                    (Elm.ExposedOperator
-                                        (Elm.Located
-                                            ( 1, 1 )
-                                            Elm.RightPipe
-                                            ( 1, 3 )
-                                        )
-                                    )
-                                    ( 1, 3 )
-                                ]
-                                Elm.NotTrailing
-                            )
-                    )
-                    (Parser.run Elm.moduleDeclaration source)
-        , Test.test "Module declaration with exposing something trailing" <|
-            \_ ->
-                let
-                    source =
-                        "module Hello exposing (value, String(Str),)"
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.ModuleDeclaration
-                            (Elm.Located
-                                ( 0, 0 )
-                                (Elm.ModuleName_
-                                    (Elm.UppercaseIdentifier "Hello")
-                                    []
-                                    Elm.NotTrailing
-                                )
-                                ( 0, 0 )
-                            )
-                            (Elm.ExposingList
-                                [ Elm.Located ( 0, 0 )
-                                    (Elm.ExposedValue (Elm.LowercaseIdentifier "value"))
-                                    ( 1, 3 )
-                                , Elm.Located ( 0, 0 )
-                                    (Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                        (Elm.Located
-                                            ( 1, 7 )
-                                            (Elm.ExposedConstructors
-                                                [ Elm.UppercaseIdentifier "Str" ]
-                                                Elm.NotTrailing
-                                            )
-                                            ( 1, 7 )
-                                        )
-                                    )
-                                    ( 1, 3 )
-                                ]
-                                Elm.Trailing
-                            )
-                    )
-                    (Parser.run Elm.moduleDeclaration source)
-        , Test.test "Module declaration with exposing something trailing multiline" <|
-            \_ ->
-                let
-                    source =
-                        """module Hello exposing
-                         ( value
-                         , String(Str)
-                         , Int(..)
-                         , (|>)
-                         ,
-                        """
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.ModuleDeclaration
-                            (Elm.Located
-                                ( 0, 0 )
-                                (Elm.ModuleName_
-                                    (Elm.UppercaseIdentifier "Hello")
-                                    []
-                                    Elm.NotTrailing
-                                )
-                                ( 0, 0 )
-                            )
-                            (Elm.ExposingList
-                                [ Elm.Located ( 0, 0 )
-                                    (Elm.ExposedValue (Elm.LowercaseIdentifier "value"))
-                                    ( 1, 3 )
-                                , Elm.Located ( 0, 0 )
-                                    (Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                        (Elm.Located
-                                            ( 1, 7 )
-                                            (Elm.ExposedConstructors
-                                                [ Elm.UppercaseIdentifier "Str" ]
-                                                Elm.NotTrailing
-                                            )
-                                            ( 1, 7 )
-                                        )
-                                    )
-                                    ( 1, 3 )
-                                , Elm.Located ( 0, 0 )
-                                    (Elm.ExposedType (Elm.UppercaseIdentifier "Int")
-                                        (Elm.Located
-                                            ( 1, 7 )
-                                            Elm.ExposedConstructorsDotDot
-                                            ( 1, 7 )
-                                        )
-                                    )
-                                    ( 1, 3 )
-                                , Elm.Located ( 0, 0 )
-                                    (Elm.ExposedOperator
-                                        (Elm.Located
-                                            ( 1, 1 )
-                                            Elm.RightPipe
-                                            ( 1, 3 )
-                                        )
-                                    )
-                                    ( 1, 3 )
-                                ]
-                                Elm.Trailing
-                            )
-                    )
-                    (Parser.run Elm.moduleDeclaration source)
-        , Test.test "Module declaration with exposing something trailing with no closing parenthesis" <|
-            \_ ->
-                let
-                    source =
-                        "module Hello exposing (value, String(Str),"
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.ModuleDeclaration
-                            (Elm.Located
-                                ( 0, 0 )
-                                (Elm.ModuleName_
-                                    (Elm.UppercaseIdentifier "Hello")
-                                    []
-                                    Elm.NotTrailing
-                                )
-                                ( 0, 0 )
-                            )
-                            (Elm.ExposingList
-                                [ Elm.Located ( 0, 0 )
-                                    (Elm.ExposedValue (Elm.LowercaseIdentifier "value"))
-                                    ( 1, 3 )
-                                , Elm.Located ( 0, 0 )
-                                    (Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                        (Elm.Located
-                                            ( 1, 7 )
-                                            (Elm.ExposedConstructors
-                                                [ Elm.UppercaseIdentifier "Str" ]
-                                                Elm.NotTrailing
-                                            )
-                                            ( 1, 7 )
-                                        )
-                                    )
-                                    ( 1, 3 )
-                                ]
-                                Elm.Trailing
-                            )
-                    )
-                    (Parser.run Elm.moduleDeclaration source)
-        , Test.test "Module declaration with exposing something trailing with no closing parenthesis multiline" <|
-            \_ ->
-                let
-                    source =
-                        """module Hello exposing
-                         ( value
-                         , String(Str)
-                         , Int(..)
-                         , (|>)
-                         ,
-                        """
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.ModuleDeclaration
-                            (Elm.Located
-                                ( 0, 0 )
-                                (Elm.ModuleName_
-                                    (Elm.UppercaseIdentifier "Hello")
-                                    []
-                                    Elm.NotTrailing
-                                )
-                                ( 0, 0 )
-                            )
-                            (Elm.ExposingList
-                                [ Elm.Located ( 0, 0 )
-                                    (Elm.ExposedValue (Elm.LowercaseIdentifier "value"))
-                                    ( 1, 3 )
-                                , Elm.Located ( 0, 0 )
-                                    (Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                        (Elm.Located
-                                            ( 1, 7 )
-                                            (Elm.ExposedConstructors
-                                                [ Elm.UppercaseIdentifier "Str" ]
-                                                Elm.NotTrailing
-                                            )
-                                            ( 1, 7 )
-                                        )
-                                    )
-                                    ( 1, 3 )
-                                , Elm.Located ( 0, 0 )
-                                    (Elm.ExposedType (Elm.UppercaseIdentifier "Int")
-                                        (Elm.Located
-                                            ( 1, 7 )
-                                            Elm.ExposedConstructorsDotDot
-                                            ( 1, 7 )
-                                        )
-                                    )
-                                    ( 1, 3 )
-                                , Elm.Located ( 0, 0 )
-                                    (Elm.ExposedOperator
-                                        (Elm.Located
-                                            ( 1, 1 )
-                                            Elm.RightPipe
-                                            ( 1, 3 )
-                                        )
-                                    )
-                                    ( 1, 3 )
-                                ]
-                                Elm.Trailing
-                            )
-                    )
-                    (Parser.run Elm.moduleDeclaration source)
-        , Test.test "Module declaration with exposing something with no closing parenthesis multiline" <|
-            \_ ->
-                let
-                    source =
-                        "module Hello exposing (value, String(Str), "
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.ModuleDeclaration
-                            (Elm.Located
-                                ( 0, 0 )
-                                (Elm.ModuleName_
-                                    (Elm.UppercaseIdentifier "Hello")
-                                    []
-                                    Elm.NotTrailing
-                                )
-                                ( 0, 0 )
-                            )
-                            (Elm.ExposingList
-                                [ Elm.Located ( 0, 0 )
-                                    (Elm.ExposedValue (Elm.LowercaseIdentifier "value"))
-                                    ( 1, 3 )
-                                , Elm.Located ( 0, 0 )
-                                    (Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                        (Elm.Located
-                                            ( 1, 7 )
-                                            (Elm.ExposedConstructors
-                                                [ Elm.UppercaseIdentifier "Str" ]
-                                                Elm.NotTrailing
-                                            )
-                                            ( 1, 7 )
-                                        )
-                                    )
-                                    ( 1, 3 )
-                                ]
-                                Elm.Trailing
-                            )
-                    )
-                    (Parser.run Elm.moduleDeclaration source)
-        , Test.test "Module declaration with exposing something with no closing parenthesis multiline" <|
-            \_ ->
-                let
-                    source =
-                        """module Hello exposing
-                         ( value
-                         , String(Str)
-                         , Int(..)
-                         , (|>)
-                        """
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.ModuleDeclaration
-                            (Elm.Located
-                                ( 0, 0 )
-                                (Elm.ModuleName_
-                                    (Elm.UppercaseIdentifier "Hello")
-                                    []
-                                    Elm.NotTrailing
-                                )
-                                ( 0, 0 )
-                            )
-                            (Elm.ExposingList
-                                [ Elm.Located ( 0, 0 )
-                                    (Elm.ExposedValue (Elm.LowercaseIdentifier "value"))
-                                    ( 1, 3 )
-                                , Elm.Located ( 0, 0 )
-                                    (Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                        (Elm.Located
-                                            ( 1, 7 )
-                                            (Elm.ExposedConstructors
-                                                [ Elm.UppercaseIdentifier "Str" ]
-                                                Elm.NotTrailing
-                                            )
-                                            ( 1, 7 )
-                                        )
-                                    )
-                                    ( 1, 3 )
-                                , Elm.Located ( 0, 0 )
-                                    (Elm.ExposedType (Elm.UppercaseIdentifier "Int")
-                                        (Elm.Located
-                                            ( 1, 7 )
-                                            Elm.ExposedConstructorsDotDot
-                                            ( 1, 7 )
-                                        )
-                                    )
-                                    ( 1, 3 )
-                                , Elm.Located ( 0, 0 )
-                                    (Elm.ExposedOperator
-                                        (Elm.Located
-                                            ( 1, 1 )
-                                            Elm.RightPipe
-                                            ( 1, 3 )
-                                        )
-                                    )
-                                    ( 1, 3 )
-                                ]
-                                Elm.Trailing
-                            )
-                    )
-                    (Parser.run Elm.moduleDeclaration source)
         ]
 
 
@@ -1516,12 +1023,15 @@ moduleImportTests =
                             )
                             Elm.AliasNone
                             (Just <|
-                                Elm.ExposingList
-                                    [ Elm.Located ( 1, 24 )
-                                        (Elm.ExposedValue (Elm.LowercaseIdentifier "world"))
-                                        ( 1, 29 )
-                                    ]
-                                    Elm.NotTrailing
+                                Elm.Located ( 1, 23 )
+                                    (Elm.ExposingList
+                                        [ Elm.Located ( 1, 24 )
+                                            (Elm.ExposedValue (Elm.LowercaseIdentifier "world"))
+                                            ( 1, 29 )
+                                        ]
+                                        Elm.NotTrailing
+                                    )
+                                    ( 1, 30 )
                             )
                     )
                     (Parser.run Elm.moduleImport source)
@@ -1545,10 +1055,13 @@ moduleImportTests =
                             )
                             (Elm.Alias (Elm.UppercaseIdentifier "H"))
                             (Just <|
-                                Elm.ExposingList
-                                    [ Elm.Located ( 1, 29 ) (Elm.ExposedValue (Elm.LowercaseIdentifier "world")) ( 1, 34 )
-                                    ]
-                                    Elm.NotTrailing
+                                Elm.Located ( 1, 28 )
+                                    (Elm.ExposingList
+                                        [ Elm.Located ( 1, 29 ) (Elm.ExposedValue (Elm.LowercaseIdentifier "world")) ( 1, 34 )
+                                        ]
+                                        Elm.NotTrailing
+                                    )
+                                    ( 1, 35 )
                             )
                     )
                     (Parser.run Elm.moduleImport source)
@@ -1593,7 +1106,7 @@ moduleImportTests =
                                 ( 1, 13 )
                             )
                             (Elm.Alias (Elm.UppercaseIdentifier "H"))
-                            (Just <| Elm.ExposingList [] Elm.Trailing)
+                            (Just <| Elm.Located ( 1, 28 ) (Elm.ExposingList [] Elm.Trailing) ( 1, 29 ))
                     )
                     (Parser.run Elm.moduleImport source)
         , Test.test "Module import declaration with alias and exposing multiline" <|
@@ -1620,18 +1133,577 @@ moduleImportTests =
                             )
                             (Elm.Alias (Elm.UppercaseIdentifier "H"))
                             (Just <|
-                                Elm.ExposingList
-                                    [ Elm.Located ( 2, 32 )
-                                        (Elm.ExposedValue (Elm.LowercaseIdentifier "world"))
-                                        ( 2, 37 )
-                                    , Elm.Located ( 3, 32 )
-                                        (Elm.ExposedValue (Elm.LowercaseIdentifier "myGoodness"))
-                                        ( 3, 42 )
-                                    ]
-                                    Elm.TrailingInTheMiddle
+                                Elm.Located ( 2, 30 )
+                                    (Elm.ExposingList
+                                        [ Elm.Located ( 2, 32 )
+                                            (Elm.ExposedValue (Elm.LowercaseIdentifier "world"))
+                                            ( 2, 37 )
+                                        , Elm.Located ( 3, 32 )
+                                            (Elm.ExposedValue (Elm.LowercaseIdentifier "myGoodness"))
+                                            ( 3, 42 )
+                                        ]
+                                        Elm.TrailingInTheMiddle
+                                    )
+                                    ( 4, 31 )
                             )
                     )
                     (Parser.run Elm.moduleImport source)
+        ]
+
+
+moduleDeclarationTests : Test.Test
+moduleDeclarationTests =
+    Test.describe "Module Declaration Tests"
+        [ Test.test "Module name declaration" <|
+            \_ ->
+                let
+                    source =
+                        "module Hello"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclarationPartial
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module name declaration with capital" <|
+            \_ ->
+                let
+                    source =
+                        "Module Hello"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclarationPartial
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration unfinished exposing" <|
+            \_ ->
+                let
+                    source =
+                        "module Hello exposing"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclarationPartial
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with open parenthesis" <|
+            \_ ->
+                let
+                    source =
+                        "module Hello exposing ("
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
+                            (Elm.Located ( 1, 1 ) (Elm.ExposingList [] Elm.Trailing) ( 1, 1 ))
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with exposing nothing" <|
+            \_ ->
+                let
+                    source =
+                        "module Hello exposing ()"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
+                            (Elm.Located ( 1, 1 ) (Elm.ExposingList [] Elm.NotTrailing) ( 1, 1 ))
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with exposing something" <|
+            \_ ->
+                let
+                    source =
+                        "module Hello exposing (value, String(Str), Int(..), (|>))"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.Located ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
+                            (Elm.Located ( 1, 1 )
+                                (Elm.ExposingList
+                                    [ Elm.Located ( 0, 0 )
+                                        (Elm.ExposedValue (Elm.LowercaseIdentifier "value"))
+                                        ( 1, 3 )
+                                    , Elm.Located ( 0, 0 )
+                                        (Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                                            (Elm.Located
+                                                ( 1, 7 )
+                                                (Elm.ExposedConstructors
+                                                    [ Elm.UppercaseIdentifier "Str" ]
+                                                    Elm.NotTrailing
+                                                )
+                                                ( 1, 7 )
+                                            )
+                                        )
+                                        ( 1, 3 )
+                                    , Elm.Located ( 0, 0 )
+                                        (Elm.ExposedType (Elm.UppercaseIdentifier "Int")
+                                            (Elm.Located
+                                                ( 1, 7 )
+                                                Elm.ExposedConstructorsDotDot
+                                                ( 1, 7 )
+                                            )
+                                        )
+                                        ( 1, 3 )
+                                    , Elm.Located ( 0, 0 )
+                                        (Elm.ExposedOperator
+                                            (Elm.Located
+                                                ( 1, 1 )
+                                                Elm.RightPipe
+                                                ( 1, 3 )
+                                            )
+                                        )
+                                        ( 1, 3 )
+                                    ]
+                                    Elm.NotTrailing
+                                )
+                                ( 1, 1 )
+                            )
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with exposing something multiline" <|
+            \_ ->
+                let
+                    source =
+                        """module Hello exposing
+                         ( value
+                         , String(Str)
+                         , Int(..)
+                         , (|>)
+                         )
+                        """
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
+                            (Elm.Located ( 1, 1 )
+                                (Elm.ExposingList
+                                    [ Elm.Located ( 0, 0 )
+                                        (Elm.ExposedValue (Elm.LowercaseIdentifier "value"))
+                                        ( 1, 3 )
+                                    , Elm.Located ( 0, 0 )
+                                        (Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                                            (Elm.Located
+                                                ( 1, 7 )
+                                                (Elm.ExposedConstructors
+                                                    [ Elm.UppercaseIdentifier "Str" ]
+                                                    Elm.NotTrailing
+                                                )
+                                                ( 1, 7 )
+                                            )
+                                        )
+                                        ( 1, 3 )
+                                    , Elm.Located ( 0, 0 )
+                                        (Elm.ExposedType (Elm.UppercaseIdentifier "Int")
+                                            (Elm.Located
+                                                ( 1, 7 )
+                                                Elm.ExposedConstructorsDotDot
+                                                ( 1, 7 )
+                                            )
+                                        )
+                                        ( 1, 3 )
+                                    , Elm.Located ( 0, 0 )
+                                        (Elm.ExposedOperator
+                                            (Elm.Located
+                                                ( 1, 1 )
+                                                Elm.RightPipe
+                                                ( 1, 3 )
+                                            )
+                                        )
+                                        ( 1, 3 )
+                                    ]
+                                    Elm.NotTrailing
+                                )
+                                ( 1, 1 )
+                            )
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with exposing something trailing" <|
+            \_ ->
+                let
+                    source =
+                        "module Hello exposing (value, String(Str),)"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
+                            (Elm.Located ( 1, 1 )
+                                (Elm.ExposingList
+                                    [ Elm.Located ( 0, 0 )
+                                        (Elm.ExposedValue (Elm.LowercaseIdentifier "value"))
+                                        ( 1, 3 )
+                                    , Elm.Located ( 0, 0 )
+                                        (Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                                            (Elm.Located
+                                                ( 1, 7 )
+                                                (Elm.ExposedConstructors
+                                                    [ Elm.UppercaseIdentifier "Str" ]
+                                                    Elm.NotTrailing
+                                                )
+                                                ( 1, 7 )
+                                            )
+                                        )
+                                        ( 1, 3 )
+                                    ]
+                                    Elm.Trailing
+                                )
+                                ( 1, 1 )
+                            )
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with exposing something trailing multiline" <|
+            \_ ->
+                let
+                    source =
+                        """module Hello exposing
+                         ( value
+                         , String(Str)
+                         , Int(..)
+                         , (|>)
+                         ,
+                        """
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
+                            (Elm.Located ( 1, 1 )
+                                (Elm.ExposingList
+                                    [ Elm.Located ( 0, 0 )
+                                        (Elm.ExposedValue (Elm.LowercaseIdentifier "value"))
+                                        ( 1, 3 )
+                                    , Elm.Located ( 0, 0 )
+                                        (Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                                            (Elm.Located
+                                                ( 1, 7 )
+                                                (Elm.ExposedConstructors
+                                                    [ Elm.UppercaseIdentifier "Str" ]
+                                                    Elm.NotTrailing
+                                                )
+                                                ( 1, 7 )
+                                            )
+                                        )
+                                        ( 1, 3 )
+                                    , Elm.Located ( 0, 0 )
+                                        (Elm.ExposedType (Elm.UppercaseIdentifier "Int")
+                                            (Elm.Located
+                                                ( 1, 7 )
+                                                Elm.ExposedConstructorsDotDot
+                                                ( 1, 7 )
+                                            )
+                                        )
+                                        ( 1, 3 )
+                                    , Elm.Located ( 0, 0 )
+                                        (Elm.ExposedOperator
+                                            (Elm.Located
+                                                ( 1, 1 )
+                                                Elm.RightPipe
+                                                ( 1, 3 )
+                                            )
+                                        )
+                                        ( 1, 3 )
+                                    ]
+                                    Elm.Trailing
+                                )
+                                ( 1, 1 )
+                            )
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with exposing something trailing with no closing parenthesis" <|
+            \_ ->
+                let
+                    source =
+                        "module Hello exposing (value, String(Str),"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
+                            (Elm.Located ( 1, 1 )
+                                (Elm.ExposingList
+                                    [ Elm.Located ( 0, 0 )
+                                        (Elm.ExposedValue (Elm.LowercaseIdentifier "value"))
+                                        ( 1, 3 )
+                                    , Elm.Located ( 0, 0 )
+                                        (Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                                            (Elm.Located
+                                                ( 1, 7 )
+                                                (Elm.ExposedConstructors
+                                                    [ Elm.UppercaseIdentifier "Str" ]
+                                                    Elm.NotTrailing
+                                                )
+                                                ( 1, 7 )
+                                            )
+                                        )
+                                        ( 1, 3 )
+                                    ]
+                                    Elm.Trailing
+                                )
+                                ( 1, 1 )
+                            )
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with exposing something trailing with no closing parenthesis multiline" <|
+            \_ ->
+                let
+                    source =
+                        """module Hello exposing
+                         ( value
+                         , String(Str)
+                         , Int(..)
+                         , (|>)
+                         ,
+                        """
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
+                            (Elm.Located ( 1, 1 )
+                                (Elm.ExposingList
+                                    [ Elm.Located ( 0, 0 )
+                                        (Elm.ExposedValue (Elm.LowercaseIdentifier "value"))
+                                        ( 1, 3 )
+                                    , Elm.Located ( 0, 0 )
+                                        (Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                                            (Elm.Located
+                                                ( 1, 7 )
+                                                (Elm.ExposedConstructors
+                                                    [ Elm.UppercaseIdentifier "Str" ]
+                                                    Elm.NotTrailing
+                                                )
+                                                ( 1, 7 )
+                                            )
+                                        )
+                                        ( 1, 3 )
+                                    , Elm.Located ( 0, 0 )
+                                        (Elm.ExposedType (Elm.UppercaseIdentifier "Int")
+                                            (Elm.Located
+                                                ( 1, 7 )
+                                                Elm.ExposedConstructorsDotDot
+                                                ( 1, 7 )
+                                            )
+                                        )
+                                        ( 1, 3 )
+                                    , Elm.Located ( 0, 0 )
+                                        (Elm.ExposedOperator
+                                            (Elm.Located
+                                                ( 1, 1 )
+                                                Elm.RightPipe
+                                                ( 1, 3 )
+                                            )
+                                        )
+                                        ( 1, 3 )
+                                    ]
+                                    Elm.Trailing
+                                )
+                                ( 1, 1 )
+                            )
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with exposing something with no closing parenthesis multiline" <|
+            \_ ->
+                let
+                    source =
+                        "module Hello exposing (value, String(Str), "
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
+                            (Elm.Located ( 1, 1 )
+                                (Elm.ExposingList
+                                    [ Elm.Located ( 0, 0 )
+                                        (Elm.ExposedValue (Elm.LowercaseIdentifier "value"))
+                                        ( 1, 3 )
+                                    , Elm.Located ( 0, 0 )
+                                        (Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                                            (Elm.Located
+                                                ( 1, 7 )
+                                                (Elm.ExposedConstructors
+                                                    [ Elm.UppercaseIdentifier "Str" ]
+                                                    Elm.NotTrailing
+                                                )
+                                                ( 1, 7 )
+                                            )
+                                        )
+                                        ( 1, 3 )
+                                    ]
+                                    Elm.Trailing
+                                )
+                                ( 1, 1 )
+                            )
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
+        , Test.test "Module declaration with exposing something with no closing parenthesis multiline" <|
+            \_ ->
+                let
+                    source =
+                        """module Hello exposing
+                         ( value
+                         , String(Str)
+                         , Int(..)
+                         , (|>)
+                        """
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.ModuleDeclaration
+                            (Elm.Located
+                                ( 0, 0 )
+                                (Elm.ModuleName_
+                                    (Elm.UppercaseIdentifier "Hello")
+                                    []
+                                    Elm.NotTrailing
+                                )
+                                ( 0, 0 )
+                            )
+                            (Elm.Located ( 1, 1 )
+                                (Elm.ExposingList
+                                    [ Elm.Located ( 0, 0 )
+                                        (Elm.ExposedValue (Elm.LowercaseIdentifier "value"))
+                                        ( 1, 3 )
+                                    , Elm.Located ( 0, 0 )
+                                        (Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                                            (Elm.Located
+                                                ( 1, 7 )
+                                                (Elm.ExposedConstructors
+                                                    [ Elm.UppercaseIdentifier "Str" ]
+                                                    Elm.NotTrailing
+                                                )
+                                                ( 1, 7 )
+                                            )
+                                        )
+                                        ( 1, 3 )
+                                    , Elm.Located ( 0, 0 )
+                                        (Elm.ExposedType (Elm.UppercaseIdentifier "Int")
+                                            (Elm.Located
+                                                ( 1, 7 )
+                                                Elm.ExposedConstructorsDotDot
+                                                ( 1, 7 )
+                                            )
+                                        )
+                                        ( 1, 3 )
+                                    , Elm.Located ( 0, 0 )
+                                        (Elm.ExposedOperator
+                                            (Elm.Located
+                                                ( 1, 1 )
+                                                Elm.RightPipe
+                                                ( 1, 3 )
+                                            )
+                                        )
+                                        ( 1, 3 )
+                                    ]
+                                    Elm.Trailing
+                                )
+                                ( 1, 1 )
+                            )
+                    )
+                    (Parser.run Elm.moduleDeclaration source)
         ]
 
 
@@ -1662,7 +1734,7 @@ sourceTests =
                                         )
                                         ( 2, 34 )
                                     )
-                                    (Elm.ExposingList [] Elm.NotTrailing)
+                                    (Elm.Located ( 2, 44 ) (Elm.ExposingList [] Elm.NotTrailing) ( 2, 46 ))
                                 )
                             )
                             [ Elm.ModuleImport
@@ -1710,12 +1782,15 @@ sourceTests =
                                         )
                                         ( 2, 34 )
                                     )
-                                    (Elm.ExposingList
-                                        [ Elm.Located ( 3, 31 )
-                                            (Elm.ExposedValue (Elm.LowercaseIdentifier "myValue"))
-                                            ( 3, 38 )
-                                        ]
-                                        Elm.Trailing
+                                    (Elm.Located ( 3, 29 )
+                                        (Elm.ExposingList
+                                            [ Elm.Located ( 3, 31 )
+                                                (Elm.ExposedValue (Elm.LowercaseIdentifier "myValue"))
+                                                ( 3, 38 )
+                                            ]
+                                            Elm.Trailing
+                                        )
+                                        ( 5, 30 )
                                     )
                                 )
                             )
@@ -1743,24 +1818,27 @@ sourceTests =
                                 )
                                 Elm.AliasNone
                                 (Just <|
-                                    Elm.ExposingList
-                                        [ Elm.Located
-                                            ( 8, 48 )
-                                            (Elm.ExposedType
-                                                (Elm.UppercaseIdentifier "World")
-                                                (Elm.Located
-                                                    ( 8, 53 )
-                                                    Elm.ExposedConstructorsDotDot
-                                                    ( 8, 57 )
+                                    Elm.Located ( 8, 47 )
+                                        (Elm.ExposingList
+                                            [ Elm.Located
+                                                ( 8, 48 )
+                                                (Elm.ExposedType
+                                                    (Elm.UppercaseIdentifier "World")
+                                                    (Elm.Located
+                                                        ( 8, 53 )
+                                                        Elm.ExposedConstructorsDotDot
+                                                        ( 8, 57 )
+                                                    )
                                                 )
-                                            )
-                                            ( 8, 57 )
-                                        , Elm.Located
-                                            ( 8, 59 )
-                                            (Elm.ExposedValue (Elm.LowercaseIdentifier "world"))
-                                            ( 8, 64 )
-                                        ]
-                                        Elm.NotTrailing
+                                                ( 8, 57 )
+                                            , Elm.Located
+                                                ( 8, 59 )
+                                                (Elm.ExposedValue (Elm.LowercaseIdentifier "world"))
+                                                ( 8, 64 )
+                                            ]
+                                            Elm.NotTrailing
+                                        )
+                                        ( 8, 65 )
                                 )
                             , Elm.ModuleImport
                                 (Elm.Located
@@ -1774,19 +1852,22 @@ sourceTests =
                                 )
                                 (Elm.Alias (Elm.UppercaseIdentifier "P"))
                                 (Just <|
-                                    Elm.ExposingList
-                                        [ Elm.Located
-                                            ( 9, 54 )
-                                            (Elm.ExposedOperator
-                                                (Elm.Located
-                                                    ( 9, 55 )
-                                                    Elm.ParseIgnore
-                                                    ( 9, 57 )
+                                    Elm.Located ( 9, 53 )
+                                        (Elm.ExposingList
+                                            [ Elm.Located
+                                                ( 9, 54 )
+                                                (Elm.ExposedOperator
+                                                    (Elm.Located
+                                                        ( 9, 55 )
+                                                        Elm.ParseIgnore
+                                                        ( 9, 57 )
+                                                    )
                                                 )
-                                            )
-                                            ( 9, 58 )
-                                        ]
-                                        Elm.NotTrailing
+                                                ( 9, 58 )
+                                            ]
+                                            Elm.NotTrailing
+                                        )
+                                        ( 9, 59 )
                                 )
                             ]
                         )

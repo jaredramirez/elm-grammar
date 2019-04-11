@@ -3,7 +3,8 @@ module Elm.Parser exposing
     , Elm(..)
     , ExposedCustomTypeConstructors
     , ExposedCustomTypeConstructors_(..)
-    , ExposedItem(..)
+    , ExposedItem
+    , ExposedItem_(..)
     , ExposingList(..)
     , Identifier(..)
     , Located
@@ -223,7 +224,11 @@ exposingList =
         ]
 
 
-type ExposedItem
+type alias ExposedItem =
+    Located ExposedItem_
+
+
+type ExposedItem_
     = ExposedValue Identifier
     | ExposedType Identifier ExposedCustomTypeConstructors
     | ExposedOperator Operator
@@ -283,6 +288,7 @@ exposedItem =
             |= operator
             |. chompChar ')'
         ]
+        |> located
 
 
 

@@ -7,6 +7,7 @@ module Elm.Parser exposing
     , moduleImport
     , moduleName
     , operator
+    , pattern
     , uppercaseIdentifier
     )
 
@@ -274,45 +275,66 @@ expression =
 
 pattern : Parser Pattern
 pattern =
-    Parser.succeed Pattern
-        |= pattern_
+    Parser.succeed (\pat transform -> transform pat)
+        |= patternHelp
         |= Parser.oneOf
-            [ Parser.succeed Just
+            [ Parser.succeed (\rest -> \head -> ConsPattern head rest)
+                |. (Parser.spaces |> Parser.backtrackable)
+                |. PExtra.chompString "::"
                 |. Parser.spaces
-                |. PExtra.chompStringInsensitive "as"
-                |. Parser.spaces
-                |= lowercaseIdentifier
-            , Parser.succeed Nothing
+                |= Parser.lazy (\() -> pattern)
+            , Parser.succeed identity
             ]
 
 
-pattern_ : Parser Pattern_
-pattern_ =
+patternHelp : Parser Pattern
+patternHelp =
     Parser.oneOf
         [ Parser.succeed AnythingPattern
             |. PExtra.chompChar '_'
-        , Parser.succeed LowerPattern
-            |= lowercaseIdentifier
-        , Parser.succeed TuplePattern
+        , Parser.map LowerPattern
+            lowercaseIdentifier
+        , Parser.succeed identity
             |. PExtra.chompChar '('
-            |. Parser.spaces
-            |= Parser.lazy (\() -> pattern)
-            |. Parser.spaces
-            |. PExtra.chompChar ','
-            |. Parser.spaces
-            |= Parser.lazy (\() -> pattern)
-            |. Parser.spaces
             |= Parser.oneOf
-                [ Parser.succeed Just
-                    |. PExtra.chompChar ','
+                [ Parser.succeed UnitPattern
+                    |. PExtra.chompChar ')'
+                , Parser.succeed (\pat fromPattern -> fromPattern pat)
                     |. Parser.spaces
                     |= Parser.lazy (\() -> pattern)
                     |. Parser.spaces
-                , Parser.succeed Nothing
+                    |= Parser.oneOf
+                        [ Parser.succeed
+                            (\maybeAlias -> \pat -> ParenthesisPattern pat maybeAlias)
+                            |= Parser.oneOf
+                                [ Parser.succeed Just
+                                    |. PExtra.chompStringInsensitive "as"
+                                    |. Parser.spaces
+                                    |= lowercaseIdentifier
+                                    |. Parser.spaces
+                                , Parser.succeed Nothing
+                                ]
+                            |. PExtra.chompChar ')'
+                        , Parser.succeed
+                            (\second maybeThird ->
+                                \first ->
+                                    TuplePattern first second maybeThird
+                            )
+                            |. PExtra.chompChar ','
+                            |. Parser.spaces
+                            |= Parser.lazy (\() -> pattern)
+                            |. Parser.spaces
+                            |= Parser.oneOf
+                                [ Parser.succeed Just
+                                    |. PExtra.chompChar ','
+                                    |. Parser.spaces
+                                    |= Parser.lazy (\() -> pattern)
+                                    |. Parser.spaces
+                                , Parser.succeed Nothing
+                                ]
+                            |. PExtra.chompChar ')'
+                        ]
                 ]
-            |. PExtra.chompChar ')'
-        , Parser.succeed UnitPattern
-            |. PExtra.chompString "()"
         , Parser.succeed RecordPattern
             |. PExtra.chompChar '{'
             |. Parser.spaces
@@ -322,34 +344,31 @@ pattern_ =
                 , spaces = Parser.spaces
                 }
             |. PExtra.chompChar '}'
-        , Parser.succeed ParenthesisPattern
-            |= Parser.lazy (\() -> pattern)
         , Parser.succeed ListPattern
             |. PExtra.chompChar '['
             |. Parser.spaces
-            |= PExtra.sequence
-                { subParser = Parser.lazy (\() -> pattern)
-                , separator = PExtra.chompChar ','
-                , spaces = Parser.spaces
-                }
-            |. PExtra.chompChar ']'
-        , Parser.succeed ConsPattern
-            |= Parser.lazy (\() -> pattern)
-            |. Parser.spaces
-            |. PExtra.chompString "::"
-            |. Parser.spaces
-            |= Parser.lazy (\() -> pattern)
+            |= Parser.oneOf
+                [ Parser.succeed []
+                    |. PExtra.chompChar ']'
+                , Parser.succeed identity
+                    |= PExtra.sequence
+                        { subParser = Parser.lazy (\() -> pattern)
+                        , separator = PExtra.chompChar ','
+                        , spaces = Parser.spaces
+                        }
+                    |. PExtra.chompChar ']'
+                ]
         , Parser.succeed ()
             |. PExtra.chompChar '\''
             |. Parser.chompIf (\_ -> True)
             |. PExtra.chompChar '\''
             |> Parser.getChompedString
-            |> Parser.map CharPattern
+            |> Parser.map (String.dropLeft 1 >> String.dropRight 1 >> CharPattern)
         , Parser.succeed ()
             |. PExtra.chompChar '"'
             |. Parser.chompUntil "\""
             |> Parser.getChompedString
-            |> Parser.map StringPattern
+            |> Parser.map (String.dropLeft 1 >> StringPattern)
         , Parser.number
             { int = Just IntPattern
             , hex = Just IntPattern
@@ -361,8 +380,8 @@ pattern_ =
             |= uppercaseIdentifier
             |= PExtra.sequence
                 { subParser = Parser.lazy (\() -> pattern)
-                , separator = Parser.succeed ()
-                , spaces = PExtra.spacesAtLeastOne
+                , separator = PExtra.spacesAtLeastOne
+                , spaces = Parser.succeed ()
                 }
         ]
 

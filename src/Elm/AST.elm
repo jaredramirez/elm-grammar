@@ -12,6 +12,7 @@ module Elm.AST exposing
     , ModuleName(..)
     , Operator(..)
     , Pattern(..)
+    , Pattern_(..)
     , UppercaseIdentifier(..)
     )
 
@@ -88,19 +89,23 @@ type Expression
 
 
 type Pattern
+    = Pattern Pattern_ (Maybe LowercaseIdentifier)
+
+
+type Pattern_
     = AnythingPattern
     | LowerPattern LowercaseIdentifier
     | TuplePattern Pattern Pattern (Maybe Pattern)
     | UnitPattern
     | RecordPattern (List LowercaseIdentifier)
-    | ParenthesisPattern Pattern (Maybe LowercaseIdentifier)
+    | ParenthesisPattern Pattern
     | ListPattern (List Pattern)
-    | ConsPattern Pattern Pattern
     | CharPattern String
     | StringPattern String
     | IntPattern Int
     | FloatPattern Float
     | CtorPattern UppercaseIdentifier (List Pattern)
+    | ConsPattern Pattern Pattern
 
 
 type LowercaseIdentifier

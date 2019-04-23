@@ -1,19 +1,21 @@
 module Elm.Parser exposing
-    ( elm
+    ( casePattern
+    , elm
     , exposedItem
     , exposingList
+    , functionPattern
     , lowercaseIdentifier
     , moduleDeclaration
     , moduleImport
     , moduleName
     , operator
-    , pattern
     , uppercaseIdentifier
     )
 
 import Elm.AST exposing (..)
 import Parser exposing ((|.), (|=), Parser)
 import Parser.Extra as PExtra
+import Set
 
 
 
@@ -98,7 +100,7 @@ moduleImport =
                 |. Parser.spaces
                 |= Parser.oneOf
                     [ Parser.succeed identity
-                        |. PExtra.chompStringInsensitive "as"
+                        |. PExtra.chompStringInsensitive asString
                         |. Parser.spaces
                         |= Parser.oneOf
                             [ uppercaseIdentifier |> Parser.map Alias
@@ -273,27 +275,60 @@ expression =
 -- Pattern
 
 
-pattern : Parser Pattern
-pattern =
+functionPattern : Parser Pattern
+functionPattern =
+    Parser.succeed (\pat transform -> transform pat)
+        |= (pattern_ |> Parser.map (\pat -> Pattern pat Nothing))
+        |= Parser.oneOf
+            [ Parser.succeed (\rest -> \head -> Pattern (ConsPattern head rest) Nothing)
+                |. (Parser.spaces |> Parser.backtrackable)
+                |. PExtra.chompString consString
+                |. Parser.spaces
+                |= Parser.lazy (\_ -> casePattern)
+            , Parser.succeed identity
+            ]
+
+
+casePattern : Parser Pattern
+casePattern =
     Parser.succeed (\pat transform -> transform pat)
         |= patternHelp
         |= Parser.oneOf
-            [ Parser.succeed (\rest -> \head -> ConsPattern head rest)
+            [ Parser.succeed (\rest -> \head -> Pattern (ConsPattern head rest) Nothing)
                 |. (Parser.spaces |> Parser.backtrackable)
-                |. PExtra.chompString "::"
+                |. PExtra.chompString consString
                 |. Parser.spaces
-                |= Parser.lazy (\() -> pattern)
+                |= Parser.lazy (\_ -> casePattern)
             , Parser.succeed identity
             ]
 
 
 patternHelp : Parser Pattern
 patternHelp =
+    Parser.succeed (\pat maybeAlias -> Pattern pat maybeAlias)
+        |= pattern_
+        |= Parser.oneOf
+            [ Parser.succeed Just
+                |. (Parser.spaces |> Parser.backtrackable)
+                |. PExtra.chompString asString
+                |. Parser.spaces
+                |= lowercaseIdentifier
+            , Parser.succeed Nothing
+            ]
+
+
+pattern_ : Parser Pattern_
+pattern_ =
     Parser.oneOf
         [ Parser.succeed AnythingPattern
             |. PExtra.chompChar '_'
-        , Parser.map LowerPattern
-            lowercaseIdentifier
+        , Parser.map (LowercaseIdentifier >> LowerPattern)
+            (Parser.variable
+                { start = Char.isLower
+                , inner = \c -> Char.isAlphaNum c || c == '_'
+                , reserved = keywordsAsSet
+                }
+            )
         , Parser.succeed identity
             |. PExtra.chompChar '('
             |= Parser.oneOf
@@ -301,20 +336,11 @@ patternHelp =
                     |. PExtra.chompChar ')'
                 , Parser.succeed (\pat fromPattern -> fromPattern pat)
                     |. Parser.spaces
-                    |= Parser.lazy (\() -> pattern)
+                    |= Parser.lazy (\() -> casePattern)
                     |. Parser.spaces
                     |= Parser.oneOf
-                        [ Parser.succeed
-                            (\maybeAlias -> \pat -> ParenthesisPattern pat maybeAlias)
-                            |= Parser.oneOf
-                                [ Parser.succeed Just
-                                    |. PExtra.chompStringInsensitive "as"
-                                    |. Parser.spaces
-                                    |= lowercaseIdentifier
-                                    |. Parser.spaces
-                                , Parser.succeed Nothing
-                                ]
-                            |. PExtra.chompChar ')'
+                        [ Parser.map (\() -> \pat -> ParenthesisPattern pat)
+                            (PExtra.chompChar ')')
                         , Parser.succeed
                             (\second maybeThird ->
                                 \first ->
@@ -322,13 +348,13 @@ patternHelp =
                             )
                             |. PExtra.chompChar ','
                             |. Parser.spaces
-                            |= Parser.lazy (\() -> pattern)
+                            |= Parser.lazy (\() -> casePattern)
                             |. Parser.spaces
                             |= Parser.oneOf
                                 [ Parser.succeed Just
                                     |. PExtra.chompChar ','
                                     |. Parser.spaces
-                                    |= Parser.lazy (\() -> pattern)
+                                    |= Parser.lazy (\() -> casePattern)
                                     |. Parser.spaces
                                 , Parser.succeed Nothing
                                 ]
@@ -352,7 +378,7 @@ patternHelp =
                     |. PExtra.chompChar ']'
                 , Parser.succeed identity
                     |= PExtra.sequence
-                        { subParser = Parser.lazy (\() -> pattern)
+                        { subParser = Parser.lazy (\() -> casePattern)
                         , separator = PExtra.chompChar ','
                         , spaces = Parser.spaces
                         }
@@ -379,7 +405,7 @@ patternHelp =
         , Parser.succeed CtorPattern
             |= uppercaseIdentifier
             |= PExtra.sequence
-                { subParser = Parser.lazy (\() -> pattern)
+                { subParser = Parser.lazy (\() -> casePattern)
                 , separator = PExtra.spacesAtLeastOne
                 , spaces = Parser.succeed ()
                 }
@@ -411,6 +437,30 @@ uppercaseIdentifier =
 identifierHelp : Char -> Bool
 identifierHelp c =
     Char.isLower c || Char.isUpper c || Char.isDigit c
+
+
+
+-- Constants --
+
+
+consString : String
+consString =
+    "::"
+
+
+asString : String
+asString =
+    "as"
+
+
+keywords : List String
+keywords =
+    [ "let", "in", "case", "of", asString ]
+
+
+keywordsAsSet : Set.Set String
+keywordsAsSet =
+    Set.fromList keywords
 
 
 

@@ -72,20 +72,37 @@ type ModuleName
     = ModuleName UppercaseIdentifier (List UppercaseIdentifier)
 
 
+type TopLevelDeclaration
+    = Declaration Declaration
+    | TypeAliasDeclaration UppercaseIdentifier (List LowercaseIdentifier) -- TODO: Type
+    | CustomTypeDeclaration UppercaseIdentifier (List LowercaseIdentifier) -- TODO: Custom Type
+
+
 type Declaration
     = ValueDeclaration LowercaseIdentifier Expression
     | FunctionDeclaration LowercaseIdentifier Pattern (List Pattern) Expression
-    | TypeAliasDeclaration UppercaseIdentifier (List LowercaseIdentifier) -- TODO: Type
-    | CustomTypeDeclaration UppercaseIdentifier (List LowercaseIdentifier) -- TODO: Custom Type
-    | PortAnnotation -- TODD
-    | OperatorConfig -- TODD
-    | InfixDeclaration -- TODD
+    | ValuePatternMatchDeclaration Pattern Expression
 
 
 type Expression
     = ExpressionStub
-    | IntExpression
-    | FloatExpression
+    | VarExpression LowercaseIdentifier
+    | QualVarExpression ModuleName LowercaseIdentifier
+    | ListExpression (List Expression)
+    | RecordExpression (List ( LowercaseIdentifier, Expression ))
+    | NegateExpression Expression
+    | LambdaExpression Pattern (List Pattern) Expression
+    | CallExpression Expression (List Expression)
+    | LetExpression Declaration
+    | AccessorExpression LowercaseIdentifier
+    | UpdateExpression LowercaseIdentifier (List ( LowercaseIdentifier, Expression ))
+    | TupleExpression Expression Expression
+    | TripleExpression Expression Expression Expression
+    | UnitExpression
+    | IntExpression Int
+    | FloatExpression Float
+    | CharExpression String
+    | StringExpression String
 
 
 type Pattern

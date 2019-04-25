@@ -232,6 +232,7 @@ declaration : Parser Declaration
 declaration =
     Parser.oneOf
         [ valueOrFunctionDeclaration
+        , valuePatternMatchDeclaration
 
         -- TODO: Rest of declaration types
         ]
@@ -264,14 +265,15 @@ valueOrFunctionDeclaration =
         |= Parser.succeed ExpressionStub
 
 
-
--- Expression
-
-
-expression : Parser Expression
-expression =
-    Parser.oneOf
-        []
+valuePatternMatchDeclaration : Parser Declaration
+valuePatternMatchDeclaration =
+    Parser.succeed ValuePatternMatchDeclaration
+        |= pattern
+        |. Parser.spaces
+        |. PExtra.chompChar '='
+        |. Parser.spaces
+        -- TODO: Expression Parser
+        |= Parser.succeed ExpressionStub
 
 
 
@@ -284,50 +286,6 @@ pattern =
         |= Parser.oneOf
             [ Parser.succeed AnythingPattern
                 |. PExtra.chompChar '_'
-            , Parser.map LowerPattern
-                (Parser.variable
-                    { start = Char.isLower
-                    , inner = \c -> Char.isAlphaNum c || c == '_'
-                    , reserved = keywordsAsSet
-                    }
-                )
-            , Parser.succeed identity
-                |. PExtra.chompChar '('
-                |= Parser.oneOf
-                    [ Parser.succeed UnitPattern
-                        |. PExtra.chompChar ')'
-                    , Parser.succeed (\pat fromPattern -> fromPattern pat)
-                        |. Parser.spaces
-                        |= Parser.lazy (\() -> pattern)
-                        |. Parser.spaces
-                        |= Parser.oneOf
-                            [ Parser.map (\() -> identity)
-                                (PExtra.chompChar ')')
-                            , Parser.succeed
-                                (\second maybeThird ->
-                                    \first ->
-                                        case maybeThird of
-                                            Nothing ->
-                                                TuplePattern first second
-
-                                            Just third ->
-                                                TriplePattern first second third
-                                )
-                                |. PExtra.chompChar ','
-                                |. Parser.spaces
-                                |= Parser.lazy (\() -> pattern)
-                                |. Parser.spaces
-                                |= Parser.oneOf
-                                    [ Parser.succeed Just
-                                        |. PExtra.chompChar ','
-                                        |. Parser.spaces
-                                        |= Parser.lazy (\() -> pattern)
-                                        |. Parser.spaces
-                                    , Parser.succeed Nothing
-                                    ]
-                                |. PExtra.chompChar ')'
-                            ]
-                    ]
             , Parser.succeed RecordPattern
                 |. PExtra.chompChar '{'
                 |. Parser.spaces
@@ -337,31 +295,6 @@ pattern =
                     , spaces = Parser.spaces
                     }
                 |. PExtra.chompChar '}'
-            , Parser.succeed ListPattern
-                |. PExtra.chompChar '['
-                |. Parser.spaces
-                |= Parser.oneOf
-                    [ Parser.succeed []
-                        |. PExtra.chompChar ']'
-                    , Parser.succeed identity
-                        |= PExtra.sequence
-                            { subParser = Parser.lazy (\() -> pattern)
-                            , separator = PExtra.chompChar ','
-                            , spaces = Parser.spaces
-                            }
-                        |. PExtra.chompChar ']'
-                    ]
-            , Parser.succeed ()
-                |. PExtra.chompChar '\''
-                |. Parser.chompIf (\_ -> True)
-                |. PExtra.chompChar '\''
-                |> Parser.getChompedString
-                |> Parser.map (String.dropLeft 1 >> String.dropRight 1 >> CharPattern)
-            , Parser.succeed ()
-                |. PExtra.chompChar '"'
-                |. Parser.chompUntil "\""
-                |> Parser.getChompedString
-                |> Parser.map (String.dropLeft 1 >> StringPattern)
             , Parser.succeed CtorPattern
                 |= uppercaseIdentifier
                 |= PExtra.sequence
@@ -369,7 +302,18 @@ pattern =
                     , separator = PExtra.spacesAtLeastOne
                     , spaces = Parser.succeed ()
                     }
-            , number IntPattern FloatPattern
+            , charLiteral
+                |> Parser.map CharPattern
+            , stringLiteral
+                |> Parser.map StringPattern
+            , listLiteral (Parser.lazy (\() -> pattern))
+                |> Parser.map ListPattern
+            , variableLiteral |> Parser.map LowerPattern
+            , unitTupleTripleLiteral (Parser.lazy (\() -> pattern))
+                UnitPattern
+                TuplePattern
+                TriplePattern
+            , numberLiteral IntPattern FloatPattern
             ]
         |= Parser.oneOf
             [ Parser.succeed identity
@@ -389,11 +333,82 @@ pattern =
 
 
 
--- Tokens --
+-- Expression
 
 
-number : (Int -> decodesTo) -> (Float -> decodesTo) -> Parser decodesTo
-number fromInt fromFloat =
+expression : Parser Expression
+expression =
+    Parser.oneOf
+        [ Parser.succeed RecordExpression
+            |. PExtra.chompChar '{'
+            |. Parser.spaces
+            |= PExtra.sequence
+                { subParser =
+                    Parser.succeed Tuple.pair
+                        |= lowercaseIdentifier
+                        |. Parser.spaces
+                        |. PExtra.chompChar '='
+                        |. Parser.spaces
+                        |= Parser.lazy (\() -> expression)
+                , separator = PExtra.chompChar ','
+                , spaces = Parser.spaces
+                }
+            |. PExtra.chompChar '}'
+        , charLiteral
+            |> Parser.map CharExpression
+        , stringLiteral
+            |> Parser.map StringExpression
+        , listLiteral (Parser.lazy (\() -> expression))
+            |> Parser.map ListExpression
+        , variableLiteral |> Parser.map VarExpression
+        , unitTupleTripleLiteral (Parser.lazy (\() -> expression))
+            UnitExpression
+            TupleExpression
+            TripleExpression
+        , numberLiteral IntExpression FloatExpression
+
+        -- TODO: QualVarExpression and the rest
+        ]
+
+
+
+-- Literals --
+
+
+variableLiteral : Parser String
+variableLiteral =
+    Parser.variable
+        { start = Char.isLower
+        , inner = \c -> Char.isAlphaNum c || c == '_'
+        , reserved = keywordsAsSet
+        }
+
+
+{-| TODO: Handle escapes
+-}
+charLiteral : Parser String
+charLiteral =
+    Parser.succeed ()
+        |. PExtra.chompChar '\''
+        |. Parser.chompIf (\_ -> True)
+        |. PExtra.chompChar '\''
+        |> Parser.getChompedString
+        |> Parser.map (String.dropLeft 1 >> String.dropRight 1)
+
+
+{-| TODO: Handle escapes
+-}
+stringLiteral : Parser String
+stringLiteral =
+    Parser.succeed ()
+        |. PExtra.chompChar '"'
+        |. Parser.chompUntil "\""
+        |> Parser.getChompedString
+        |> Parser.map (String.dropLeft 1)
+
+
+numberLiteral : (Int -> decodesTo) -> (Float -> decodesTo) -> Parser decodesTo
+numberLiteral fromInt fromFloat =
     Parser.number
         { int = Just fromInt
         , hex = Just fromInt
@@ -401,6 +416,74 @@ number fromInt fromFloat =
         , binary = Nothing
         , float = Just fromFloat
         }
+
+
+unitTupleTripleLiteral :
+    Parser decodesTo
+    -> decodesTo
+    -> (decodesTo -> decodesTo -> decodesTo)
+    -> (decodesTo -> decodesTo -> decodesTo -> decodesTo)
+    -> Parser decodesTo
+unitTupleTripleLiteral subParser fromUnit fromTuple fromTriple =
+    Parser.succeed identity
+        |. PExtra.chompChar '('
+        |= Parser.oneOf
+            [ Parser.succeed fromUnit
+                |. PExtra.chompChar ')'
+            , Parser.succeed (\sub fromSub -> fromSub sub)
+                |. Parser.spaces
+                |= subParser
+                |. Parser.spaces
+                |= Parser.oneOf
+                    [ Parser.map (\() -> identity)
+                        (PExtra.chompChar ')')
+                    , Parser.succeed
+                        (\second maybeThird ->
+                            \first ->
+                                case maybeThird of
+                                    Nothing ->
+                                        fromTuple first second
+
+                                    Just third ->
+                                        fromTriple first second third
+                        )
+                        |. PExtra.chompChar ','
+                        |. Parser.spaces
+                        |= subParser
+                        |. Parser.spaces
+                        |= Parser.oneOf
+                            [ Parser.succeed Just
+                                |. PExtra.chompChar ','
+                                |. Parser.spaces
+                                |= subParser
+                                |. Parser.spaces
+                            , Parser.succeed Nothing
+                            ]
+                        |. PExtra.chompChar ')'
+                    ]
+            ]
+
+
+listLiteral : Parser decodesTo -> Parser (List decodesTo)
+listLiteral subParser =
+    Parser.succeed identity
+        |. PExtra.chompChar '['
+        |. Parser.spaces
+        |= Parser.oneOf
+            [ Parser.succeed []
+                |. PExtra.chompChar ']'
+            , Parser.succeed identity
+                |= PExtra.sequence
+                    { subParser = subParser
+                    , separator = PExtra.chompChar ','
+                    , spaces = Parser.spaces
+                    }
+                |. PExtra.chompChar ']'
+            ]
+
+
+
+-- Tokens --
 
 
 lowercaseIdentifier : Parser String

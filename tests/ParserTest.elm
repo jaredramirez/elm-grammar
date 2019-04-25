@@ -1240,12 +1240,7 @@ patternTests =
                     source =
                         """[element]"""
                 in
-                Expect.equal
-                    (Ok
-                        (Elm.ListPattern
-                            [ Elm.LowerPattern "element" ]
-                        )
-                    )
+                Expect.equal (Ok (Elm.ListPattern [ Elm.LowerPattern "element" ]))
                     (Parser.run Elm.pattern source)
         , Test.test "List (two)" <|
             \_ ->

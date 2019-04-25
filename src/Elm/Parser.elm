@@ -62,18 +62,18 @@ moduleDeclaration =
             )
             |. Parser.spaces
             |. Parser.oneOf
-                [ PExtra.chompStringInsensitive "module"
+                [ Parser.keyword moduleString
                 , Parser.succeed ()
-                    |. PExtra.chompStringInsensitive "port"
+                    |. Parser.keyword portString
                     |. Parser.spaces
-                    |. PExtra.chompStringInsensitive "module"
+                    |. Parser.keyword moduleString
                 ]
             |. Parser.spaces
             |= moduleName
             |. Parser.spaces
             |= Parser.oneOf
                 [ Parser.succeed identity
-                    |. PExtra.chompStringInsensitive "exposing"
+                    |. Parser.keyword exposingString
                     |. Parser.spaces
                     |= Parser.oneOf
                         [ exposingList |> Parser.map Just
@@ -92,7 +92,7 @@ moduleImport : Parser ModuleImport
 moduleImport =
     Parser.succeed identity
         |. Parser.spaces
-        |. PExtra.chompStringInsensitive "import"
+        |. Parser.keyword importString
         |. Parser.spaces
         |= Parser.oneOf
             [ Parser.succeed ModuleImport
@@ -111,7 +111,7 @@ moduleImport =
                 |. Parser.spaces
                 |= Parser.oneOf
                     [ Parser.succeed identity
-                        |. PExtra.chompStringInsensitive "exposing"
+                        |. Parser.keyword exposingString
                         |. Parser.spaces
                         |= Parser.oneOf
                             [ exposingList |> Parser.map Just
@@ -135,7 +135,7 @@ exposingList =
             |. Parser.spaces
             |= Parser.oneOf
                 [ Parser.succeed ExposingListDoubleDot
-                    |. Parser.token ".."
+                    |. Parser.token consString
                 , PExtra.sequence
                     { subParser = exposedItem
                     , separator = PExtra.chompChar ','
@@ -232,8 +232,8 @@ declaration : Parser Declaration
 declaration =
     Parser.oneOf
         [ valueOrFunctionDeclaration
-        , typeAliasDeclaration
-        , Parser.succeed InfixDeclaration
+
+        -- TODO: Rest of declaration types
         ]
 
 
@@ -260,22 +260,8 @@ valueOrFunctionDeclaration =
             ]
         |. PExtra.chompChar '='
         |. Parser.spaces
-        |= expression
-
-
-{-| TODO
--}
-typeAliasDeclaration : Parser Declaration
-typeAliasDeclaration =
-    Parser.succeed TypeAliasDeclaration
-        |. PExtra.chompString "type"
-        |. Parser.spaces
-        |. PExtra.chompString "alias"
-        |. Parser.spaces
-        |= uppercaseIdentifier
-        |. Parser.spaces
-        |. PExtra.chompChar '='
-        |. Parser.spaces
+        -- TODO: Expression Parser
+        |= Parser.succeed ExpressionStub
 
 
 
@@ -284,7 +270,8 @@ typeAliasDeclaration =
 
 expression : Parser Expression
 expression =
-    Parser.succeed Expression
+    Parser.oneOf
+        []
 
 
 
@@ -375,13 +362,6 @@ pattern =
                 |. Parser.chompUntil "\""
                 |> Parser.getChompedString
                 |> Parser.map (String.dropLeft 1 >> StringPattern)
-            , Parser.number
-                { int = Just IntPattern
-                , hex = Just IntPattern
-                , octal = Nothing
-                , binary = Nothing
-                , float = Just FloatPattern
-                }
             , Parser.succeed CtorPattern
                 |= uppercaseIdentifier
                 |= PExtra.sequence
@@ -389,6 +369,7 @@ pattern =
                     , separator = PExtra.spacesAtLeastOne
                     , spaces = Parser.succeed ()
                     }
+            , number IntPattern FloatPattern
             ]
         |= Parser.oneOf
             [ Parser.succeed identity
@@ -409,6 +390,17 @@ pattern =
 
 
 -- Tokens --
+
+
+number : (Int -> decodesTo) -> (Float -> decodesTo) -> Parser decodesTo
+number fromInt fromFloat =
+    Parser.number
+        { int = Just fromInt
+        , hex = Just fromInt
+        , octal = Nothing
+        , binary = Nothing
+        , float = Just fromFloat
+        }
 
 
 lowercaseIdentifier : Parser String
@@ -446,9 +438,50 @@ asString =
     "as"
 
 
+typeString : String
+typeString =
+    "type"
+
+
+aliasString : String
+aliasString =
+    "alias"
+
+
+moduleString : String
+moduleString =
+    "module"
+
+
+exposingString : String
+exposingString =
+    "exposing"
+
+
+portString : String
+portString =
+    "port"
+
+
+importString : String
+importString =
+    "import"
+
+
 keywords : List String
 keywords =
-    [ "let", "in", "case", "of", asString ]
+    [ "let"
+    , "in"
+    , "case"
+    , "of"
+    , asString
+    , typeString
+    , aliasString
+    , moduleString
+    , exposingString
+    , portString
+    , importString
+    ]
 
 
 keywordsAsSet : Set.Set String

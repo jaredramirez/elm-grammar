@@ -75,15 +75,15 @@ type ModuleName
 type Declaration
     = ValueDeclaration LowercaseIdentifier Expression
     | FunctionDeclaration LowercaseIdentifier Pattern (List Pattern) Expression
-    | TypeAliasDeclaration UppercaseIdentifier
-    | CustomTypeDeclaration
-    | PortAnnotation
-    | OperatorConfig
-    | InfixDeclaration
+    | TypeAliasDeclaration UppercaseIdentifier (List LowercaseIdentifier) -- TODO: Type
+    | CustomTypeDeclaration UppercaseIdentifier (List LowercaseIdentifier) -- TODO: Custom Type
+    | PortAnnotation -- TODD
+    | OperatorConfig -- TODD
+    | InfixDeclaration -- TODD
 
 
 type Expression
-    = Expression
+    = ExpressionStub
     | IntExpression
     | FloatExpression
 
@@ -110,4 +110,8 @@ type alias LowercaseIdentifier =
 
 
 type alias UppercaseIdentifier =
+    String
+
+
+type alias Identifier =
     String

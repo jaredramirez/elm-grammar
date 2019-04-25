@@ -533,21 +533,6 @@ moduleDeclarationTests =
                             )
                     )
                     (Parser.run Elm.moduleDeclaration source)
-        , Test.test "Module name declaration with capital" <|
-            \_ ->
-                let
-                    source =
-                        "Module Hello"
-                in
-                Expect.equal
-                    (Ok <|
-                        Elm.ModuleDeclarationPartial
-                            (Elm.ModuleName
-                                "Hello"
-                                []
-                            )
-                    )
-                    (Parser.run Elm.moduleDeclaration source)
         , Test.test "Module declaration unfinished exposing" <|
             \_ ->
                 let
@@ -1437,7 +1422,7 @@ declarationTests =
                         "value = "
                 in
                 Expect.equal
-                    (Ok (Elm.ValueDeclaration "value" Elm.Expression))
+                    (Ok (Elm.ValueDeclaration "value" Elm.ExpressionStub))
                     (Parser.run Elm.declaration source)
         , Test.test "Function" <|
             \_ ->
@@ -1451,7 +1436,7 @@ declarationTests =
                             "value"
                             (Elm.LowerPattern "arg")
                             []
-                            Elm.Expression
+                            Elm.ExpressionStub
                         )
                     )
                     (Parser.run Elm.declaration source)
@@ -1467,7 +1452,7 @@ declarationTests =
                             "value"
                             (Elm.LowerPattern "arg")
                             [ Elm.AnythingPattern ]
-                            Elm.Expression
+                            Elm.ExpressionStub
                         )
                     )
                     (Parser.run Elm.declaration source)
@@ -1483,7 +1468,7 @@ declarationTests =
                             (Elm.LowerPattern "arg")
                             [ Elm.CtorPattern "World" [ Elm.LowerPattern "w" ]
                             ]
-                            Elm.Expression
+                            Elm.ExpressionStub
                         )
                     )
                     (Parser.run Elm.declaration source)
@@ -1498,7 +1483,7 @@ declarationTests =
                         (Elm.FunctionDeclaration "value"
                             (Elm.LowerPattern "arg")
                             [ Elm.AliasPattern (Elm.CtorPattern "World" [ Elm.LowerPattern "w" ]) "abc" ]
-                            Elm.Expression
+                            Elm.ExpressionStub
                         )
                     )
                     (Parser.run Elm.declaration source)
@@ -1514,7 +1499,7 @@ declarationTests =
                         (Elm.FunctionDeclaration "value"
                             (Elm.LowerPattern "arg")
                             [ Elm.AliasPattern (Elm.CtorPattern "World" [ Elm.LowerPattern "w" ]) "abc" ]
-                            Elm.Expression
+                            Elm.ExpressionStub
                         )
                     )
                     (Parser.run Elm.declaration source)

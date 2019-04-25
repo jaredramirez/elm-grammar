@@ -19,6 +19,7 @@ test =
         , moduleImportTests
         , sourceTests
         , patternTests
+        , declarationTests
         ]
 
 
@@ -31,7 +32,7 @@ tokenTests =
                     source =
                         "Hello"
                 in
-                Expect.equal (Ok <| Elm.UppercaseIdentifier "Hello")
+                Expect.equal (Ok <| "Hello")
                     (Parser.run Elm.uppercaseIdentifier source)
         , Test.test "Lowercase Identifier" <|
             \_ ->
@@ -39,7 +40,7 @@ tokenTests =
                     source =
                         "hello"
                 in
-                Expect.equal (Ok <| Elm.LowercaseIdentifier "hello")
+                Expect.equal (Ok <| "hello")
                     (Parser.run Elm.lowercaseIdentifier source)
         ]
 
@@ -56,7 +57,7 @@ moduleNameTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleName
-                            (Elm.UppercaseIdentifier "Hello")
+                            "Hello"
                             []
                     )
                     (Parser.run Elm.moduleName source)
@@ -69,9 +70,9 @@ moduleNameTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleName
-                            (Elm.UppercaseIdentifier "Hello")
-                            [ Elm.UppercaseIdentifier "World"
-                            , Elm.UppercaseIdentifier "HowYaDoing"
+                            "Hello"
+                            [ "World"
+                            , "HowYaDoing"
                             ]
                     )
                     (Parser.run Elm.moduleName source)
@@ -84,7 +85,7 @@ moduleNameTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleName
-                            (Elm.UppercaseIdentifier "Hello")
+                            "Hello"
                             []
                     )
                     (Parser.run Elm.moduleName source)
@@ -96,8 +97,8 @@ moduleNameTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ModuleName (Elm.UppercaseIdentifier "Hello")
-                            [ Elm.UppercaseIdentifier "World" ]
+                        Elm.ModuleName "Hello"
+                            [ "World" ]
                     )
                     (Parser.run Elm.moduleName source)
         ]
@@ -112,7 +113,7 @@ exposedItemTests =
                     source =
                         "hello"
                 in
-                Expect.equal (Ok <| Elm.ExposedValue (Elm.LowercaseIdentifier "hello"))
+                Expect.equal (Ok <| Elm.ExposedValue "hello")
                     (Parser.run Elm.exposedItem source)
         , Test.test "ExposedUnion Opaque" <|
             \_ ->
@@ -122,7 +123,7 @@ exposedItemTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                        Elm.ExposedType "String"
                             Elm.NoExposedConstructors
                     )
                     (Parser.run Elm.exposedItem source)
@@ -133,7 +134,7 @@ exposedItemTests =
                         "String(..)"
                 in
                 Expect.equal
-                    (Ok <| Elm.ExposedType (Elm.UppercaseIdentifier "String") Elm.ExposedConstructorsDotDot)
+                    (Ok <| Elm.ExposedType "String" Elm.ExposedConstructorsDotDot)
                     (Parser.run Elm.exposedItem source)
         , Test.test "ExposedUnion with Constructors" <|
             \_ ->
@@ -143,8 +144,8 @@ exposedItemTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                            (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ])
+                        Elm.ExposedType "String"
+                            (Elm.ExposedConstructors [ "Str" ])
                     )
                     (Parser.run Elm.exposedItem source)
         , Test.test "ExposedUnion with Constructors trailing" <|
@@ -155,8 +156,8 @@ exposedItemTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                            (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ])
+                        Elm.ExposedType "String"
+                            (Elm.ExposedConstructors [ "Str" ])
                     )
                     (Parser.run Elm.exposedItem source)
         , Test.test "ExposedUnion with Constructors missing parenthesis" <|
@@ -167,9 +168,9 @@ exposedItemTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                        Elm.ExposedType "String"
                             (Elm.ExposedConstructors
-                                [ Elm.UppercaseIdentifier "Str" ]
+                                [ "Str" ]
                             )
                     )
                     (Parser.run Elm.exposedItem source)
@@ -181,9 +182,9 @@ exposedItemTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.ExposedType (Elm.UppercaseIdentifier "String")
+                        Elm.ExposedType "String"
                             (Elm.ExposedConstructors
-                                [ Elm.UppercaseIdentifier "Str" ]
+                                [ "Str" ]
                             )
                     )
                     (Parser.run Elm.exposedItem source)
@@ -210,7 +211,7 @@ exposingListTests =
                 Expect.equal
                     (Ok <|
                         Elm.ExposingList
-                            [ Elm.ExposedValue (Elm.LowercaseIdentifier "hello")
+                            [ Elm.ExposedValue "hello"
                             ]
                     )
                     (Parser.run Elm.exposingList source)
@@ -223,7 +224,7 @@ exposingListTests =
                 Expect.equal
                     (Ok <|
                         Elm.ExposingList
-                            [ Elm.ExposedType (Elm.UppercaseIdentifier "Hello")
+                            [ Elm.ExposedType "Hello"
                                 Elm.NoExposedConstructors
                             ]
                     )
@@ -237,7 +238,7 @@ exposingListTests =
                 Expect.equal
                     (Ok <|
                         Elm.ExposingList
-                            [ Elm.ExposedType (Elm.UppercaseIdentifier "Hello")
+                            [ Elm.ExposedType "Hello"
                                 Elm.ExposedConstructorsDotDot
                             ]
                     )
@@ -251,8 +252,8 @@ exposingListTests =
                 Expect.equal
                     (Ok <|
                         Elm.ExposingList
-                            [ Elm.ExposedType (Elm.UppercaseIdentifier "Hello")
-                                (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "World" ])
+                            [ Elm.ExposedType "Hello"
+                                (Elm.ExposedConstructors [ "World" ])
                             ]
                     )
                     (Parser.run Elm.exposingList source)
@@ -275,11 +276,11 @@ exposingListTests =
                     (Ok <|
                         Elm.ExposingList
                             [ Elm.ExposedOperator Elm.PlusPlus
-                            , Elm.ExposedValue (Elm.LowercaseIdentifier "myValue")
+                            , Elm.ExposedValue "myValue"
                             , Elm.ExposedType
-                                (Elm.UppercaseIdentifier "String")
+                                "String"
                                 (Elm.ExposedConstructors
-                                    [ Elm.UppercaseIdentifier "Str" ]
+                                    [ "Str" ]
                                 )
                             ]
                     )
@@ -294,11 +295,11 @@ exposingListTests =
                     (Ok <|
                         Elm.ExposingList
                             [ Elm.ExposedOperator Elm.PlusPlus
-                            , Elm.ExposedValue (Elm.LowercaseIdentifier "myValue")
+                            , Elm.ExposedValue "myValue"
                             , Elm.ExposedType
-                                (Elm.UppercaseIdentifier "String")
+                                "String"
                                 (Elm.ExposedConstructors
-                                    [ Elm.UppercaseIdentifier "Str" ]
+                                    [ "Str" ]
                                 )
                             ]
                     )
@@ -313,11 +314,11 @@ exposingListTests =
                     (Ok <|
                         Elm.ExposingList
                             [ Elm.ExposedOperator Elm.PlusPlus
-                            , Elm.ExposedValue (Elm.LowercaseIdentifier "myValue")
+                            , Elm.ExposedValue "myValue"
                             , Elm.ExposedType
-                                (Elm.UppercaseIdentifier "String")
+                                "String"
                                 (Elm.ExposedConstructors
-                                    [ Elm.UppercaseIdentifier "Str" ]
+                                    [ "Str" ]
                                 )
                             ]
                     )
@@ -332,11 +333,11 @@ exposingListTests =
                     (Ok <|
                         Elm.ExposingList
                             [ Elm.ExposedOperator Elm.PlusPlus
-                            , Elm.ExposedValue (Elm.LowercaseIdentifier "myValue")
+                            , Elm.ExposedValue "myValue"
                             , Elm.ExposedType
-                                (Elm.UppercaseIdentifier "String")
+                                "String"
                                 (Elm.ExposedConstructors
-                                    [ Elm.UppercaseIdentifier "Str" ]
+                                    [ "Str" ]
                                 )
                             ]
                     )
@@ -376,7 +377,7 @@ exposingListTests =
                     (Ok <|
                         Elm.ExposingList
                             [ Elm.ExposedOperator Elm.PlusPlus
-                            , Elm.ExposedValue (Elm.LowercaseIdentifier "hello")
+                            , Elm.ExposedValue "hello"
                             ]
                     )
                     (Parser.run Elm.exposingList source)
@@ -393,7 +394,7 @@ exposingListTests =
                     (Ok <|
                         Elm.ExposingList
                             [ Elm.ExposedOperator Elm.PlusPlus
-                            , Elm.ExposedValue (Elm.LowercaseIdentifier "hello")
+                            , Elm.ExposedValue "hello"
                             ]
                     )
                     (Parser.run Elm.exposingList source)
@@ -527,7 +528,7 @@ moduleDeclarationTests =
                     (Ok <|
                         Elm.ModuleDeclarationPartial
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
                     )
@@ -542,7 +543,7 @@ moduleDeclarationTests =
                     (Ok <|
                         Elm.ModuleDeclarationPartial
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
                     )
@@ -557,7 +558,7 @@ moduleDeclarationTests =
                     (Ok <|
                         Elm.ModuleDeclarationPartial
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
                     )
@@ -571,7 +572,7 @@ moduleDeclarationTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleDeclaration
-                            (Elm.ModuleName (Elm.UppercaseIdentifier "Hello") [])
+                            (Elm.ModuleName "Hello" [])
                             (Elm.ExposingList [])
                     )
                     (Parser.run Elm.moduleDeclaration source)
@@ -585,7 +586,7 @@ moduleDeclarationTests =
                     (Ok <|
                         Elm.ModuleDeclaration
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
                             (Elm.ExposingList [])
@@ -601,14 +602,14 @@ moduleDeclarationTests =
                     (Ok <|
                         Elm.ModuleDeclaration
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
                             (Elm.ExposingList
-                                [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
-                                , Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ])
-                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
+                                [ Elm.ExposedValue "value"
+                                , Elm.ExposedType "String"
+                                    (Elm.ExposedConstructors [ "Str" ])
+                                , Elm.ExposedType "Int" Elm.ExposedConstructorsDotDot
                                 , Elm.ExposedOperator Elm.RightPipe
                                 ]
                             )
@@ -630,14 +631,14 @@ moduleDeclarationTests =
                     (Ok <|
                         Elm.ModuleDeclaration
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
                             (Elm.ExposingList
-                                [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
-                                , Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ])
-                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
+                                [ Elm.ExposedValue "value"
+                                , Elm.ExposedType "String"
+                                    (Elm.ExposedConstructors [ "Str" ])
+                                , Elm.ExposedType "Int" Elm.ExposedConstructorsDotDot
                                 , Elm.ExposedOperator Elm.RightPipe
                                 ]
                             )
@@ -653,13 +654,13 @@ moduleDeclarationTests =
                     (Ok <|
                         Elm.ModuleDeclaration
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
                             (Elm.ExposingList
-                                [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
-                                , Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ])
+                                [ Elm.ExposedValue "value"
+                                , Elm.ExposedType "String"
+                                    (Elm.ExposedConstructors [ "Str" ])
                                 ]
                             )
                     )
@@ -680,14 +681,14 @@ moduleDeclarationTests =
                     (Ok <|
                         Elm.ModuleDeclaration
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
                             (Elm.ExposingList
-                                [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
-                                , Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ])
-                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
+                                [ Elm.ExposedValue "value"
+                                , Elm.ExposedType "String"
+                                    (Elm.ExposedConstructors [ "Str" ])
+                                , Elm.ExposedType "Int" Elm.ExposedConstructorsDotDot
                                 , Elm.ExposedOperator Elm.RightPipe
                                 ]
                             )
@@ -703,13 +704,13 @@ moduleDeclarationTests =
                     (Ok <|
                         Elm.ModuleDeclaration
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
                             (Elm.ExposingList
-                                [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
-                                , Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ])
+                                [ Elm.ExposedValue "value"
+                                , Elm.ExposedType "String"
+                                    (Elm.ExposedConstructors [ "Str" ])
                                 ]
                             )
                     )
@@ -730,14 +731,14 @@ moduleDeclarationTests =
                     (Ok <|
                         Elm.ModuleDeclaration
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
                             (Elm.ExposingList
-                                [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
-                                , Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ])
-                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
+                                [ Elm.ExposedValue "value"
+                                , Elm.ExposedType "String"
+                                    (Elm.ExposedConstructors [ "Str" ])
+                                , Elm.ExposedType "Int" Elm.ExposedConstructorsDotDot
                                 , Elm.ExposedOperator Elm.RightPipe
                                 ]
                             )
@@ -753,13 +754,13 @@ moduleDeclarationTests =
                     (Ok <|
                         Elm.ModuleDeclaration
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
                             (Elm.ExposingList
-                                [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
-                                , Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ])
+                                [ Elm.ExposedValue "value"
+                                , Elm.ExposedType "String"
+                                    (Elm.ExposedConstructors [ "Str" ])
                                 ]
                             )
                     )
@@ -779,14 +780,14 @@ moduleDeclarationTests =
                     (Ok <|
                         Elm.ModuleDeclaration
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
                             (Elm.ExposingList
-                                [ Elm.ExposedValue (Elm.LowercaseIdentifier "value")
-                                , Elm.ExposedType (Elm.UppercaseIdentifier "String")
-                                    (Elm.ExposedConstructors [ Elm.UppercaseIdentifier "Str" ])
-                                , Elm.ExposedType (Elm.UppercaseIdentifier "Int") Elm.ExposedConstructorsDotDot
+                                [ Elm.ExposedValue "value"
+                                , Elm.ExposedType "String"
+                                    (Elm.ExposedConstructors [ "Str" ])
+                                , Elm.ExposedType "Int" Elm.ExposedConstructorsDotDot
                                 , Elm.ExposedOperator Elm.RightPipe
                                 ]
                             )
@@ -817,7 +818,7 @@ moduleImportTests =
                     (Ok <|
                         Elm.ModuleImport
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
                             Elm.AliasNone
@@ -834,7 +835,7 @@ moduleImportTests =
                     (Ok <|
                         Elm.ModuleImport
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
                             Elm.AliasNone
@@ -851,7 +852,7 @@ moduleImportTests =
                     (Ok <|
                         Elm.ModuleImport
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
                             Elm.AliasPartial
@@ -868,10 +869,10 @@ moduleImportTests =
                     (Ok <|
                         Elm.ModuleImport
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
-                            (Elm.Alias (Elm.UppercaseIdentifier "H"))
+                            (Elm.Alias "H")
                             Nothing
                     )
                     (Parser.run Elm.moduleImport source)
@@ -885,13 +886,13 @@ moduleImportTests =
                     (Ok <|
                         Elm.ModuleImport
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
                             Elm.AliasNone
                             (Just <|
                                 Elm.ExposingList
-                                    [ Elm.ExposedValue (Elm.LowercaseIdentifier "world") ]
+                                    [ Elm.ExposedValue "world" ]
                             )
                     )
                     (Parser.run Elm.moduleImport source)
@@ -905,12 +906,12 @@ moduleImportTests =
                     (Ok <|
                         Elm.ModuleImport
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
-                            (Elm.Alias (Elm.UppercaseIdentifier "H"))
+                            (Elm.Alias "H")
                             (Just <|
-                                Elm.ExposingList [ Elm.ExposedValue (Elm.LowercaseIdentifier "world") ]
+                                Elm.ExposingList [ Elm.ExposedValue "world" ]
                             )
                     )
                     (Parser.run Elm.moduleImport source)
@@ -924,10 +925,10 @@ moduleImportTests =
                     (Ok <|
                         Elm.ModuleImport
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
-                            (Elm.Alias (Elm.UppercaseIdentifier "H"))
+                            (Elm.Alias "H")
                             Nothing
                     )
                     (Parser.run Elm.moduleImport source)
@@ -941,10 +942,10 @@ moduleImportTests =
                     (Ok <|
                         Elm.ModuleImport
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
-                            (Elm.Alias (Elm.UppercaseIdentifier "H"))
+                            (Elm.Alias "H")
                             (Just <| Elm.ExposingList [])
                     )
                     (Parser.run Elm.moduleImport source)
@@ -962,14 +963,14 @@ moduleImportTests =
                     (Ok <|
                         Elm.ModuleImport
                             (Elm.ModuleName
-                                (Elm.UppercaseIdentifier "Hello")
+                                "Hello"
                                 []
                             )
-                            (Elm.Alias (Elm.UppercaseIdentifier "H"))
+                            (Elm.Alias "H")
                             (Just <|
                                 Elm.ExposingList
-                                    [ Elm.ExposedValue (Elm.LowercaseIdentifier "world")
-                                    , Elm.ExposedValue (Elm.LowercaseIdentifier "myGoodness")
+                                    [ Elm.ExposedValue "world"
+                                    , Elm.ExposedValue "myGoodness"
                                     ]
                             )
                     )
@@ -995,7 +996,7 @@ sourceTests =
                             (Just
                                 (Elm.ModuleDeclaration
                                     (Elm.ModuleName
-                                        (Elm.UppercaseIdentifier "Ya")
+                                        "Ya"
                                         []
                                     )
                                     (Elm.ExposingList [])
@@ -1003,7 +1004,7 @@ sourceTests =
                             )
                             [ Elm.ModuleImport
                                 (Elm.ModuleName
-                                    (Elm.UppercaseIdentifier "Hello")
+                                    "Hello"
                                     []
                                 )
                                 Elm.AliasNone
@@ -1032,41 +1033,41 @@ sourceTests =
                             (Just
                                 (Elm.ModuleDeclaration
                                     (Elm.ModuleName
-                                        (Elm.UppercaseIdentifier "Ya")
+                                        "Ya"
                                         []
                                     )
                                     (Elm.ExposingList
-                                        [ Elm.ExposedValue (Elm.LowercaseIdentifier "myValue")
+                                        [ Elm.ExposedValue "myValue"
                                         ]
                                     )
                                 )
                             )
                             [ Elm.ModuleImport
                                 (Elm.ModuleName
-                                    (Elm.UppercaseIdentifier "Hello")
+                                    "Hello"
                                     []
                                 )
-                                (Elm.Alias (Elm.UppercaseIdentifier "H"))
+                                (Elm.Alias "H")
                                 Nothing
                             , Elm.ModuleImport
                                 (Elm.ModuleName
-                                    (Elm.UppercaseIdentifier "World")
+                                    "World"
                                     []
                                 )
                                 Elm.AliasNone
                                 (Just <|
                                     Elm.ExposingList
-                                        [ Elm.ExposedType (Elm.UppercaseIdentifier "World")
+                                        [ Elm.ExposedType "World"
                                             Elm.ExposedConstructorsDotDot
-                                        , Elm.ExposedValue (Elm.LowercaseIdentifier "world")
+                                        , Elm.ExposedValue "world"
                                         ]
                                 )
                             , Elm.ModuleImport
                                 (Elm.ModuleName
-                                    (Elm.UppercaseIdentifier "Parser")
+                                    "Parser"
                                     []
                                 )
-                                (Elm.Alias (Elm.UppercaseIdentifier "P"))
+                                (Elm.Alias "P")
                                 (Just <|
                                     Elm.ExposingList [ Elm.ExposedOperator Elm.ParseIgnore ]
                                 )
@@ -1087,7 +1088,7 @@ sourceTests =
                         (Elm.Elm Nothing
                             [ Elm.ModuleImport
                                 (Elm.ModuleName
-                                    (Elm.UppercaseIdentifier "Hello")
+                                    "Hello"
                                     []
                                 )
                                 Elm.AliasNone
@@ -1102,425 +1103,419 @@ sourceTests =
 patternTests : Test.Test
 patternTests =
     Test.describe "Pattern Tests"
-        [ Test.describe "Case Patterns"
-            [ Test.test "Anything " <|
-                \_ ->
-                    let
-                        source =
-                            "_"
-                    in
-                    Expect.equal
-                        (Ok (Elm.Pattern Elm.AnythingPattern Nothing))
-                        (Parser.run Elm.casePattern source)
-            , Test.test "Lower" <|
-                \_ ->
-                    let
-                        source =
-                            "variable"
-                    in
-                    Expect.equal
-                        (Ok (Elm.Pattern (Elm.LowerPattern <| Elm.LowercaseIdentifier "variable") Nothing))
-                        (Parser.run Elm.casePattern source)
-            , Test.test "Tuple" <|
-                \_ ->
-                    let
-                        source =
-                            """(  h, _ )"""
-                    in
-                    Expect.equal
-                        (Ok
-                            (Elm.Pattern
-                                (Elm.TuplePattern
-                                    (Elm.Pattern (Elm.LowerPattern (Elm.LowercaseIdentifier "h")) Nothing)
-                                    (Elm.Pattern Elm.AnythingPattern Nothing)
-                                    Nothing
-                                )
-                                Nothing
+        [ Test.test "Anything " <|
+            \_ ->
+                let
+                    source =
+                        "_"
+                in
+                Expect.equal
+                    (Ok Elm.AnythingPattern)
+                    (Parser.run Elm.pattern source)
+        , Test.test "Lower" <|
+            \_ ->
+                let
+                    source =
+                        "variable"
+                in
+                Expect.equal
+                    (Ok (Elm.LowerPattern <| "variable"))
+                    (Parser.run Elm.pattern source)
+        , Test.test "Tuple" <|
+            \_ ->
+                let
+                    source =
+                        """(  h, _ )"""
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.TuplePattern
+                            (Elm.LowerPattern "h")
+                            Elm.AnythingPattern
+                        )
+                    )
+                    (Parser.run Elm.pattern source)
+        , Test.test "Triple" <|
+            \_ ->
+                let
+                    source =
+                        """(  h, _  , yikes)"""
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.TriplePattern
+                            (Elm.LowerPattern "h")
+                            Elm.AnythingPattern
+                            (Elm.LowerPattern "yikes")
+                        )
+                    )
+                    (Parser.run Elm.pattern source)
+        , Test.test "Tuple nested" <|
+            \_ ->
+                let
+                    source =
+                        """(  (_, myThing), _ )"""
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.TuplePattern
+                            (Elm.TuplePattern
+                                Elm.AnythingPattern
+                                (Elm.LowerPattern "myThing")
+                            )
+                            Elm.AnythingPattern
+                        )
+                    )
+                    (Parser.run Elm.pattern source)
+        , Test.test "Unit" <|
+            \_ ->
+                let
+                    source =
+                        """()"""
+                in
+                Expect.equal
+                    (Ok Elm.UnitPattern)
+                    (Parser.run Elm.pattern source)
+        , Test.test "Record" <|
+            \_ ->
+                let
+                    source =
+                        """{ hello, world}"""
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.RecordPattern
+                            [ "hello"
+                            , "world"
+                            ]
+                        )
+                    )
+                    (Parser.run Elm.pattern source)
+        , Test.test "Parenthesis (Record)" <|
+            \_ ->
+                let
+                    source =
+                        """({ hello, world})"""
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.RecordPattern
+                            [ "hello"
+                            , "world"
+                            ]
+                        )
+                    )
+                    (Parser.run Elm.pattern source)
+        , Test.test "Parenthesis (Record) with alias" <|
+            \_ ->
+                let
+                    source =
+                        """({ hello, world} as oi)"""
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.AliasPattern
+                            (Elm.RecordPattern
+                                [ "hello"
+                                , "world"
+                                ]
+                            )
+                            "oi"
+                        )
+                    )
+                    (Parser.run Elm.pattern source)
+        , Test.test "Tuple with alias" <|
+            \_ ->
+                let
+                    source =
+                        """(myMan, _) as aaaabbbb"""
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.AliasPattern
+                            (Elm.TuplePattern
+                                (Elm.LowerPattern "myMan")
+                                Elm.AnythingPattern
+                            )
+                            "aaaabbbb"
+                        )
+                    )
+                    (Parser.run Elm.pattern source)
+        , Test.test "List (empty)" <|
+            \_ ->
+                let
+                    source =
+                        """[]"""
+                in
+                Expect.equal (Ok (Elm.ListPattern []))
+                    (Parser.run Elm.pattern source)
+        , Test.test "List (one)" <|
+            \_ ->
+                let
+                    source =
+                        """[element]"""
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.ListPattern
+                            [ Elm.LowerPattern "element" ]
+                        )
+                    )
+                    (Parser.run Elm.pattern source)
+        , Test.test "List (two)" <|
+            \_ ->
+                let
+                    source =
+                        """[element, _]"""
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.ListPattern
+                            [ Elm.LowerPattern "element"
+                            , Elm.AnythingPattern
+                            ]
+                        )
+                    )
+                    (Parser.run Elm.pattern source)
+        , Test.test "List  trailing(two)" <|
+            \_ ->
+                let
+                    source =
+                        """[element, _, ]"""
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.ListPattern
+                            [ Elm.LowerPattern "element"
+                            , Elm.AnythingPattern
+                            ]
+                        )
+                    )
+                    (Parser.run Elm.pattern source)
+        , Test.test "Cons empty list" <|
+            \_ ->
+                let
+                    source =
+                        """element :: []"""
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.ConsPattern
+                            (Elm.LowerPattern "element")
+                            (Elm.ListPattern [])
+                        )
+                    )
+                    (Parser.run Elm.pattern source)
+        , Test.test "Cons cons empty list" <|
+            \_ ->
+                let
+                    source =
+                        """element :: _ :: []"""
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.ConsPattern
+                            (Elm.LowerPattern "element")
+                            (Elm.ConsPattern
+                                Elm.AnythingPattern
+                                (Elm.ListPattern [])
                             )
                         )
-                        (Parser.run Elm.casePattern source)
-            , Test.test "Triple" <|
-                \_ ->
-                    let
-                        source =
-                            """(  h, _  , yikes)"""
-                    in
-                    Expect.equal
-                        (Ok
-                            (Elm.Pattern
-                                (Elm.TuplePattern
-                                    (Elm.Pattern (Elm.LowerPattern (Elm.LowercaseIdentifier "h")) Nothing)
-                                    (Elm.Pattern Elm.AnythingPattern Nothing)
-                                    (Just (Elm.Pattern (Elm.LowerPattern (Elm.LowercaseIdentifier "yikes")) Nothing))
-                                )
-                                Nothing
-                            )
+                    )
+                    (Parser.run Elm.pattern source)
+        , Test.test "Char" <|
+            \_ ->
+                let
+                    source =
+                        """'a'"""
+                in
+                Expect.equal
+                    (Ok (Elm.CharPattern "a"))
+                    (Parser.run Elm.pattern source)
+        , Test.test "String" <|
+            \_ ->
+                let
+                    source =
+                        "\"Hello\""
+                in
+                Expect.equal
+                    (Ok (Elm.StringPattern "Hello"))
+                    (Parser.run Elm.pattern source)
+        , Test.test "Int" <|
+            \_ ->
+                let
+                    source =
+                        "123"
+                in
+                Expect.equal
+                    (Ok (Elm.IntPattern 123))
+                    (Parser.run Elm.pattern source)
+        , Test.test "Float" <|
+            \_ ->
+                let
+                    source =
+                        "1.2"
+                in
+                Expect.equal
+                    (Ok (Elm.FloatPattern 1.2))
+                    (Parser.run Elm.pattern source)
+        , Test.test "Ctor" <|
+            \_ ->
+                let
+                    source =
+                        "Hello _ world"
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.CtorPattern "Hello"
+                            [ Elm.AnythingPattern
+                            , Elm.LowerPattern "world"
+                            ]
                         )
-                        (Parser.run Elm.casePattern source)
-            , Test.test "Tuple nested" <|
-                \_ ->
-                    let
-                        source =
-                            """(  (_, myThing), _ )"""
-                    in
-                    Expect.equal
-                        (Ok
-                            (Elm.Pattern
-                                (Elm.TuplePattern
-                                    (Elm.Pattern
-                                        (Elm.TuplePattern
-                                            (Elm.Pattern Elm.AnythingPattern Nothing)
-                                            (Elm.Pattern (Elm.LowerPattern (Elm.LowercaseIdentifier "myThing")) Nothing)
-                                            Nothing
-                                        )
-                                        Nothing
-                                    )
-                                    (Elm.Pattern Elm.AnythingPattern Nothing)
-                                    Nothing
-                                )
-                                Nothing
-                            )
+                    )
+                    (Parser.run Elm.pattern source)
+        , Test.test "Ctor with sub ctor" <|
+            \_ ->
+                let
+                    source =
+                        "Hello (World world) whatUp"
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.CtorPattern "Hello"
+                            [ Elm.CtorPattern "World"
+                                [ Elm.LowerPattern "world"
+                                ]
+                            , Elm.LowerPattern "whatUp"
+                            ]
                         )
-                        (Parser.run Elm.casePattern source)
-            , Test.test "Unit" <|
-                \_ ->
-                    let
-                        source =
-                            """()"""
-                    in
-                    Expect.equal
-                        (Ok (Elm.Pattern Elm.UnitPattern Nothing))
-                        (Parser.run Elm.casePattern source)
-            , Test.test "Record" <|
-                \_ ->
-                    let
-                        source =
-                            """{ hello, world}"""
-                    in
-                    Expect.equal
-                        (Ok
-                            (Elm.Pattern
-                                (Elm.RecordPattern
-                                    [ Elm.LowercaseIdentifier "hello"
-                                    , Elm.LowercaseIdentifier "world"
-                                    ]
-                                )
-                                Nothing
-                            )
+                    )
+                    (Parser.run Elm.pattern source)
+        , Test.test "Ctor with sub pattern alias" <|
+            \_ ->
+                let
+                    source =
+                        "World ({world} as w)"
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.CtorPattern "World"
+                            [ Elm.AliasPattern
+                                (Elm.RecordPattern [ "world" ])
+                                "w"
+                            ]
                         )
-                        (Parser.run Elm.casePattern source)
-            , Test.test "Parenthesis (Record)" <|
-                \_ ->
-                    let
-                        source =
-                            """({ hello, world})"""
-                    in
-                    Expect.equal
-                        (Ok
-                            (Elm.Pattern
-                                (Elm.ParenthesisPattern
-                                    (Elm.Pattern
-                                        (Elm.RecordPattern [ Elm.LowercaseIdentifier "hello", Elm.LowercaseIdentifier "world" ])
-                                        Nothing
-                                    )
-                                )
-                                Nothing
+                    )
+                    (Parser.run Elm.pattern source)
+        , Test.test "Ctor with alias" <|
+            \_ ->
+                let
+                    source =
+                        "(Hello world) as h"
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.AliasPattern
+                            (Elm.CtorPattern "Hello"
+                                [ Elm.LowerPattern "world"
+                                ]
                             )
+                            "h"
                         )
-                        (Parser.run Elm.casePattern source)
-            , Test.test "Parenthesis (Record) with alias" <|
-                \_ ->
-                    let
-                        source =
-                            """({ hello, world} as oi)"""
-                    in
-                    Expect.equal
-                        (Ok
-                            (Elm.Pattern
-                                (Elm.ParenthesisPattern
-                                    (Elm.Pattern
-                                        (Elm.RecordPattern
-                                            [ Elm.LowercaseIdentifier "hello", Elm.LowercaseIdentifier "world" ]
-                                        )
-                                        (Just (Elm.LowercaseIdentifier "oi"))
-                                    )
-                                )
-                                Nothing
-                            )
+                    )
+                    (Parser.run Elm.pattern source)
+        ]
+
+
+declarationTests : Test.Test
+declarationTests =
+    Test.describe "Declaration Tests"
+        [ Test.test "Value" <|
+            \_ ->
+                let
+                    source =
+                        "value = "
+                in
+                Expect.equal
+                    (Ok (Elm.ValueDeclaration "value" Elm.Expression))
+                    (Parser.run Elm.declaration source)
+        , Test.test "Function" <|
+            \_ ->
+                let
+                    source =
+                        "value arg = "
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.FunctionDeclaration
+                            "value"
+                            (Elm.LowerPattern "arg")
+                            []
+                            Elm.Expression
                         )
-                        (Parser.run Elm.casePattern source)
-            , Test.test "Tuple with alias" <|
-                \_ ->
-                    let
-                        source =
-                            """(myMan, _) as aaaabbbb"""
-                    in
-                    Expect.equal
-                        (Ok
-                            (Elm.Pattern
-                                (Elm.TuplePattern
-                                    (Elm.Pattern (Elm.LowerPattern (Elm.LowercaseIdentifier "myMan")) Nothing)
-                                    (Elm.Pattern Elm.AnythingPattern Nothing)
-                                    Nothing
-                                )
-                                (Just (Elm.LowercaseIdentifier "aaaabbbb"))
-                            )
+                    )
+                    (Parser.run Elm.declaration source)
+        , Test.test "Function with many args" <|
+            \_ ->
+                let
+                    source =
+                        "value arg _ = "
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.FunctionDeclaration
+                            "value"
+                            (Elm.LowerPattern "arg")
+                            [ Elm.AnythingPattern ]
+                            Elm.Expression
                         )
-                        (Parser.run Elm.casePattern source)
-            , Test.test "List (empty)" <|
-                \_ ->
-                    let
-                        source =
-                            """[]"""
-                    in
-                    Expect.equal (Ok (Elm.Pattern (Elm.ListPattern []) Nothing))
-                        (Parser.run Elm.casePattern source)
-            , Test.test "List (one)" <|
-                \_ ->
-                    let
-                        source =
-                            """[element]"""
-                    in
-                    Expect.equal
-                        (Ok
-                            (Elm.Pattern
-                                (Elm.ListPattern
-                                    [ Elm.Pattern (Elm.LowerPattern (Elm.LowercaseIdentifier "element")) Nothing ]
-                                )
-                                Nothing
-                            )
+                    )
+                    (Parser.run Elm.declaration source)
+        , Test.test "Function with many pattern matched" <|
+            \_ ->
+                let
+                    source =
+                        "value arg (World w) = "
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.FunctionDeclaration "value"
+                            (Elm.LowerPattern "arg")
+                            [ Elm.CtorPattern "World" [ Elm.LowerPattern "w" ]
+                            ]
+                            Elm.Expression
                         )
-                        (Parser.run Elm.casePattern source)
-            , Test.test "List (two)" <|
-                \_ ->
-                    let
-                        source =
-                            """[element, _]"""
-                    in
-                    Expect.equal
-                        (Ok
-                            (Elm.Pattern
-                                (Elm.ListPattern
-                                    [ Elm.Pattern (Elm.LowerPattern (Elm.LowercaseIdentifier "element")) Nothing
-                                    , Elm.Pattern Elm.AnythingPattern Nothing
-                                    ]
-                                )
-                                Nothing
-                            )
+                    )
+                    (Parser.run Elm.declaration source)
+        , Test.test "Function with many pattern matched with alias" <|
+            \_ ->
+                let
+                    source =
+                        "value arg ((World w) as abc) = "
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.FunctionDeclaration "value"
+                            (Elm.LowerPattern "arg")
+                            [ Elm.AliasPattern (Elm.CtorPattern "World" [ Elm.LowerPattern "w" ]) "abc" ]
+                            Elm.Expression
                         )
-                        (Parser.run Elm.casePattern source)
-            , Test.test "List  trailing(two)" <|
-                \_ ->
-                    let
-                        source =
-                            """[element, _, ]"""
-                    in
-                    Expect.equal
-                        (Ok
-                            (Elm.Pattern
-                                (Elm.ListPattern
-                                    [ Elm.Pattern (Elm.LowerPattern (Elm.LowercaseIdentifier "element")) Nothing
-                                    , Elm.Pattern Elm.AnythingPattern Nothing
-                                    ]
-                                )
-                                Nothing
-                            )
+                    )
+                    (Parser.run Elm.declaration source)
+        , Test.test "Function with many pattern matched with alias top level" <|
+            -- TODO: Should this even pass?
+            \_ ->
+                let
+                    source =
+                        "value arg (World w) as abc = "
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.FunctionDeclaration "value"
+                            (Elm.LowerPattern "arg")
+                            [ Elm.AliasPattern (Elm.CtorPattern "World" [ Elm.LowerPattern "w" ]) "abc" ]
+                            Elm.Expression
                         )
-                        (Parser.run Elm.casePattern source)
-            , Test.test "Cons empty list" <|
-                \_ ->
-                    let
-                        source =
-                            """element :: []"""
-                    in
-                    Expect.equal
-                        (Ok
-                            (Elm.Pattern
-                                (Elm.ConsPattern
-                                    (Elm.Pattern (Elm.LowerPattern (Elm.LowercaseIdentifier "element")) Nothing)
-                                    (Elm.Pattern (Elm.ListPattern []) Nothing)
-                                )
-                                Nothing
-                            )
-                        )
-                        (Parser.run Elm.casePattern source)
-            , Test.test "Cons cons empty list" <|
-                \_ ->
-                    let
-                        source =
-                            """element :: _ :: []"""
-                    in
-                    Expect.equal
-                        (Ok
-                            (Elm.Pattern
-                                (Elm.ConsPattern
-                                    (Elm.Pattern (Elm.LowerPattern (Elm.LowercaseIdentifier "element")) Nothing)
-                                    (Elm.Pattern
-                                        (Elm.ConsPattern
-                                            (Elm.Pattern Elm.AnythingPattern Nothing)
-                                            (Elm.Pattern (Elm.ListPattern []) Nothing)
-                                        )
-                                        Nothing
-                                    )
-                                )
-                                Nothing
-                            )
-                        )
-                        (Parser.run Elm.casePattern source)
-            , Test.test "Char" <|
-                \_ ->
-                    let
-                        source =
-                            """'a'"""
-                    in
-                    Expect.equal
-                        (Ok (Elm.Pattern (Elm.CharPattern "a") Nothing))
-                        (Parser.run Elm.casePattern source)
-            , Test.test "String" <|
-                \_ ->
-                    let
-                        source =
-                            "\"Hello\""
-                    in
-                    Expect.equal
-                        (Ok (Elm.Pattern (Elm.StringPattern "Hello") Nothing))
-                        (Parser.run Elm.casePattern source)
-            , Test.test "Int" <|
-                \_ ->
-                    let
-                        source =
-                            "123"
-                    in
-                    Expect.equal
-                        (Ok (Elm.Pattern (Elm.IntPattern 123) Nothing))
-                        (Parser.run Elm.casePattern source)
-            , Test.test "Float" <|
-                \_ ->
-                    let
-                        source =
-                            "1.2"
-                    in
-                    Expect.equal
-                        (Ok (Elm.Pattern (Elm.FloatPattern 1.2) Nothing))
-                        (Parser.run Elm.casePattern source)
-            , Test.test "Ctor" <|
-                \_ ->
-                    let
-                        source =
-                            "Hello _ world"
-                    in
-                    Expect.equal
-                        (Ok
-                            (Elm.Pattern
-                                (Elm.CtorPattern (Elm.UppercaseIdentifier "Hello")
-                                    [ Elm.Pattern Elm.AnythingPattern Nothing
-                                    , Elm.Pattern (Elm.LowerPattern (Elm.LowercaseIdentifier "world")) Nothing
-                                    ]
-                                )
-                                Nothing
-                            )
-                        )
-                        (Parser.run Elm.casePattern source)
-            , Test.test "Ctor with sub ctor" <|
-                \_ ->
-                    let
-                        source =
-                            "Hello (World world) whatUp"
-                    in
-                    Expect.equal
-                        (Ok
-                            (Elm.Pattern
-                                (Elm.CtorPattern (Elm.UppercaseIdentifier "Hello")
-                                    [ Elm.Pattern
-                                        (Elm.ParenthesisPattern
-                                            (Elm.Pattern
-                                                (Elm.CtorPattern (Elm.UppercaseIdentifier "World")
-                                                    [ Elm.Pattern (Elm.LowerPattern (Elm.LowercaseIdentifier "world")) Nothing ]
-                                                )
-                                                Nothing
-                                            )
-                                        )
-                                        Nothing
-                                    , Elm.Pattern (Elm.LowerPattern (Elm.LowercaseIdentifier "whatUp")) Nothing
-                                    ]
-                                )
-                                Nothing
-                            )
-                        )
-                        (Parser.run Elm.casePattern source)
-            , Test.test "Ctor with sub pattern alias" <|
-                \_ ->
-                    let
-                        source =
-                            "World ({world} as w)"
-                    in
-                    Expect.equal
-                        (Ok
-                            (Elm.Pattern
-                                (Elm.CtorPattern (Elm.UppercaseIdentifier "World")
-                                    [ Elm.Pattern
-                                        (Elm.ParenthesisPattern
-                                            (Elm.Pattern (Elm.RecordPattern [ Elm.LowercaseIdentifier "world" ])
-                                                (Just (Elm.LowercaseIdentifier "w"))
-                                            )
-                                        )
-                                        Nothing
-                                    ]
-                                )
-                                Nothing
-                            )
-                        )
-                        (Parser.run Elm.casePattern source)
-            , Test.test "Ctor with alias" <|
-                \_ ->
-                    let
-                        source =
-                            "(Hello world) as h"
-                    in
-                    Expect.equal
-                        (Ok
-                            (Elm.Pattern
-                                (Elm.ParenthesisPattern
-                                    (Elm.Pattern
-                                        (Elm.CtorPattern (Elm.UppercaseIdentifier "Hello")
-                                            [ Elm.Pattern (Elm.LowerPattern (Elm.LowercaseIdentifier "world")) Nothing ]
-                                        )
-                                        Nothing
-                                    )
-                                )
-                                (Just (Elm.LowercaseIdentifier "h"))
-                            )
-                        )
-                        (Parser.run Elm.casePattern source)
-            ]
-        , Test.describe "Function Patterns"
-            [ Test.test "Anything" <|
-                \_ ->
-                    let
-                        source =
-                            "_ as hello"
-                    in
-                    Expect.equal
-                        (Ok (Elm.Pattern Elm.AnythingPattern Nothing))
-                        (Parser.run Elm.functionPattern source)
-            , Test.test "Parenthesis" <|
-                \_ ->
-                    let
-                        source =
-                            "(_ as hello)"
-                    in
-                    Expect.equal
-                        (Ok
-                            (Elm.Pattern
-                                (Elm.ParenthesisPattern
-                                    (Elm.Pattern
-                                        Elm.AnythingPattern
-                                        (Just (Elm.LowercaseIdentifier "hello"))
-                                    )
-                                )
-                                Nothing
-                            )
-                        )
-                        (Parser.run Elm.functionPattern source)
-            ]
+                    )
+                    (Parser.run Elm.declaration source)
         ]

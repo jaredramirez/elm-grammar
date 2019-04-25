@@ -5,7 +5,8 @@
   "author": "jaredramirez <jaredramirez@me.com>",
   "license": "BSD-3-Clause",
   "scripts": {
-    "elm-test": "elm-test"
+    "test": "elm-test",
+    "test:watch": "elm-test --watch"
   },
   "dependencies": {
     "elm-test": "0.19.0-rev6"

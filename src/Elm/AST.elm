@@ -6,14 +6,13 @@ module Elm.AST exposing
     , ExposedItem(..)
     , ExposingList(..)
     , Expression(..)
-    , LowercaseIdentifier(..)
+    , LowercaseIdentifier
     , ModuleDeclaration(..)
     , ModuleImport(..)
     , ModuleName(..)
     , Operator(..)
     , Pattern(..)
-    , Pattern_(..)
-    , UppercaseIdentifier(..)
+    , UppercaseIdentifier
     )
 
 
@@ -75,6 +74,7 @@ type ModuleName
 
 type Declaration
     = ValueDeclaration LowercaseIdentifier Expression
+    | FunctionDeclaration LowercaseIdentifier Pattern (List Pattern) Expression
     | TypeAliasDeclaration UppercaseIdentifier
     | CustomTypeDeclaration
     | PortAnnotation
@@ -89,16 +89,12 @@ type Expression
 
 
 type Pattern
-    = Pattern Pattern_ (Maybe LowercaseIdentifier)
-
-
-type Pattern_
     = AnythingPattern
     | LowerPattern LowercaseIdentifier
-    | TuplePattern Pattern Pattern (Maybe Pattern)
+    | TuplePattern Pattern Pattern
+    | TriplePattern Pattern Pattern Pattern
     | UnitPattern
     | RecordPattern (List LowercaseIdentifier)
-    | ParenthesisPattern Pattern
     | ListPattern (List Pattern)
     | CharPattern String
     | StringPattern String
@@ -106,11 +102,12 @@ type Pattern_
     | FloatPattern Float
     | CtorPattern UppercaseIdentifier (List Pattern)
     | ConsPattern Pattern Pattern
+    | AliasPattern Pattern LowercaseIdentifier
 
 
-type LowercaseIdentifier
-    = LowercaseIdentifier String
+type alias LowercaseIdentifier =
+    String
 
 
-type UppercaseIdentifier
-    = UppercaseIdentifier String
+type alias UppercaseIdentifier =
+    String

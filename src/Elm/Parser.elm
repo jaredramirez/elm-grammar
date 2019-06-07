@@ -14,9 +14,60 @@ module Elm.Parser exposing
     )
 
 import Elm.AST exposing (..)
-import Parser exposing ((|.), (|=), Parser)
+import Parser.Advanced as Parser exposing ((|.), (|=))
 import Parser.Extra as PExtra
 import Set
+
+
+type alias Parser a =
+    Parser.Parser Context Problem a
+
+
+type Context
+    = Context
+
+
+type Problem
+    = ExpectingModule
+    | ExpectingPort
+    | ExpectingExposing
+    | ExpectingImport
+    | ExpectingSpaces
+    | ExpectingAs
+    | ExpectingType
+    | ExpectingAlias
+    | ExpectingLet
+    | ExpectingIn
+    | ExpectingOpenParen
+    | ExpectingCloseParen
+    | ExpectingComma
+    | ExpectingDot
+    | ExpectingDotDot
+    | ExpectingCons
+    | ExpectingPlus
+    | ExpectingMinus
+    | ExpectingStar
+    | ExpectingForwardSlash
+    | ExpectingRightCarrot
+    | ExpectingLeftCarrot
+    | ExpectingPipe
+    | ExpectingEqual
+    | ExpectingBackSlash
+    | ExpectingArrow
+    | ExpectingUnderscore
+    | ExpectingOpenCurlyBracket
+    | ExpectingCloseCurlyBracket
+    | ExpectingNegate
+    | ExpectingVariable
+    | ExpectingSingleQuote
+    | ExpectingDoubleQuote
+    | ExpectingCharacter
+    | ExpectingOpenSquareBracket
+    | ExpectingCloseSquareBracket
+    | ExpectingNumber
+    | InvalidNumber
+    | ExpectingLowerCharacter
+    | ExpectingUpperCharacter
 
 
 
@@ -38,7 +89,7 @@ elm =
             [ Parser.succeed identity
                 |= PExtra.sequence
                     { subParser = moduleImport
-                    , separator = PExtra.spacesAtLeastOne
+                    , separator = spacesAtLeastOne
                     , spaces = Parser.succeed ()
                     }
             , Parser.succeed []
@@ -63,18 +114,18 @@ moduleDeclaration =
             )
             |. Parser.spaces
             |. Parser.oneOf
-                [ Parser.keyword moduleString
+                [ Parser.keyword moduleToken
                 , Parser.succeed ()
-                    |. Parser.keyword portString
+                    |. Parser.keyword portToken
                     |. Parser.spaces
-                    |. Parser.keyword moduleString
+                    |. Parser.keyword moduleToken
                 ]
             |. Parser.spaces
             |= moduleName
             |. Parser.spaces
             |= Parser.oneOf
                 [ Parser.succeed identity
-                    |. Parser.keyword exposingString
+                    |. Parser.keyword exposingToken
                     |. Parser.spaces
                     |= Parser.oneOf
                         [ exposingList |> Parser.map Just
@@ -93,7 +144,7 @@ moduleImport : Parser ModuleImport
 moduleImport =
     Parser.succeed identity
         |. Parser.spaces
-        |. Parser.keyword importString
+        |. Parser.keyword importToken
         |. Parser.spaces
         |= Parser.oneOf
             [ Parser.succeed ModuleImport
@@ -101,7 +152,7 @@ moduleImport =
                 |. Parser.spaces
                 |= Parser.oneOf
                     [ Parser.succeed identity
-                        |. PExtra.chompStringInsensitive asString
+                        |. Parser.token asToken
                         |. Parser.spaces
                         |= Parser.oneOf
                             [ uppercaseIdentifier |> Parser.map Alias
@@ -112,7 +163,7 @@ moduleImport =
                 |. Parser.spaces
                 |= Parser.oneOf
                     [ Parser.succeed identity
-                        |. Parser.keyword exposingString
+                        |. Parser.keyword exposingToken
                         |. Parser.spaces
                         |= Parser.oneOf
                             [ exposingList |> Parser.map Just
@@ -132,20 +183,20 @@ exposingList : Parser ExposingList
 exposingList =
     Parser.oneOf
         [ Parser.succeed identity
-            |. PExtra.chompChar '('
+            |. Parser.symbol openParenthesisToken
             |. Parser.spaces
             |= Parser.oneOf
                 [ Parser.succeed ExposingListDoubleDot
-                    |. Parser.token consString
+                    |. Parser.token consToken
                 , PExtra.sequence
                     { subParser = exposedItem
-                    , separator = PExtra.chompChar ','
+                    , separator = Parser.symbol commaToken
                     , spaces = Parser.spaces
                     }
                     |> Parser.map ExposingList
                 ]
             |. Parser.oneOf
-                [ PExtra.chompChar ')'
+                [ Parser.symbol closeParenthesisToken
                 , Parser.succeed ()
                 ]
         ]
@@ -159,9 +210,9 @@ exposedItem =
             |= uppercaseIdentifier
             |= exposedConstructors
         , Parser.succeed ExposedOperator
-            |. PExtra.chompChar '('
+            |. Parser.symbol openParenthesisToken
             |= operator
-            |. PExtra.chompChar ')'
+            |. Parser.symbol closeParenthesisToken
         ]
 
 
@@ -169,20 +220,20 @@ exposedConstructors : Parser ExposedCustomTypeConstructors
 exposedConstructors =
     Parser.oneOf
         [ Parser.succeed identity
-            |. PExtra.chompChar '('
+            |. Parser.symbol openParenthesisToken
             |. Parser.spaces
             |= Parser.oneOf
-                [ Parser.succeed ExposedConstructorsDotDot
-                    |. Parser.token ".."
+                [ Parser.token dotDotToken
+                    |> Parser.map (\() -> ExposedConstructorsDotDot)
                 , PExtra.sequence
                     { subParser = uppercaseIdentifier
-                    , separator = PExtra.chompChar ','
+                    , separator = Parser.symbol commaToken
                     , spaces = Parser.spaces
                     }
                     |> Parser.map ExposedConstructors
                 ]
             |. Parser.oneOf
-                [ PExtra.chompChar ')'
+                [ Parser.symbol closeParenthesisToken
                 , Parser.succeed ()
                 ]
         , Parser.succeed NoExposedConstructors
@@ -196,18 +247,40 @@ exposedConstructors =
 operator : Parser Operator
 operator =
     Parser.oneOf
-        [ Parser.backtrackable (PExtra.chompString "++" |> Parser.map (\() -> PlusPlus))
-        , PExtra.chompString "+" |> Parser.map (\() -> Plus)
-        , PExtra.chompString "-" |> Parser.map (\() -> Minus)
-        , PExtra.chompString "*" |> Parser.map (\() -> Multiply)
-        , Parser.backtrackable (PExtra.chompString "//" |> Parser.map (\() -> DivideInt))
-        , PExtra.chompString "/" |> Parser.map (\() -> DivideFloat)
-        , Parser.backtrackable (PExtra.chompString "|>" |> Parser.map (\() -> RightPipe))
-        , Parser.backtrackable (PExtra.chompString "<|" |> Parser.map (\() -> LeftPipe))
-        , Parser.backtrackable (PExtra.chompString "|=" |> Parser.map (\() -> ParseKeep))
-        , PExtra.chompString "|." |> Parser.map (\() -> ParseIgnore)
-        , PExtra.chompString ">=" |> Parser.map (\() -> GreaterThan)
-        , PExtra.chompString "<=" |> Parser.map (\() -> LessThan)
+        [ Parser.succeed identity
+            |. Parser.symbol plusToken
+            |= Parser.oneOf
+                [ Parser.symbol plusToken |> Parser.map (\() -> PlusPlus)
+                , Parser.succeed Plus
+                ]
+        , Parser.succeed identity
+            |. Parser.symbol forwardSlashToken
+            |= Parser.oneOf
+                [ Parser.symbol forwardSlashToken |> Parser.map (\() -> DivideInt)
+                , Parser.succeed DivideFloat
+                ]
+        , Parser.succeed identity
+            |. Parser.symbol pipeToken
+            |= Parser.oneOf
+                [ Parser.symbol rightCarrotToken |> Parser.map (\() -> RightPipe)
+                , Parser.symbol equalsToken |> Parser.map (\() -> ParseKeep)
+                , Parser.symbol dotToken |> Parser.map (\() -> ParseIgnore)
+                ]
+        , Parser.succeed identity
+            |. Parser.symbol rightCarrotToken
+            |= Parser.oneOf
+                [ Parser.symbol equalsToken |> Parser.map (\() -> GreaterThanOrEqual)
+                , Parser.succeed GreaterThan
+                ]
+        , Parser.succeed identity
+            |. Parser.symbol leftCarrotToken
+            |= Parser.oneOf
+                [ Parser.symbol pipeToken |> Parser.map (\() -> LeftPipe)
+                , Parser.symbol equalsToken |> Parser.map (\() -> LessThanOrEqual)
+                , Parser.succeed LessThan
+                ]
+        , Parser.symbol minusToken |> Parser.map (\() -> Minus)
+        , Parser.symbol starToken |> Parser.map (\() -> Multiply)
         ]
 
 
@@ -219,7 +292,7 @@ moduleName : Parser ModuleName
 moduleName =
     PExtra.sequenceAtLeastOne
         { subParser = uppercaseIdentifier
-        , separator = PExtra.chompChar '.'
+        , separator = Parser.symbol dotToken
         , spaces = Parser.succeed ()
         }
         |> Parser.map (\( head, rest ) -> ModuleName head rest)
@@ -255,12 +328,12 @@ valueOrFunctionDeclaration =
                 )
                 |= PExtra.sequenceAtLeastOne
                     { subParser = pattern
-                    , separator = PExtra.spacesAtLeastOne
+                    , separator = spacesAtLeastOne
                     , spaces = Parser.succeed ()
                     }
             , Parser.succeed (\name exp -> ValueDeclaration name exp)
             ]
-        |. PExtra.chompChar '='
+        |. Parser.symbol equalsToken
         |. Parser.spaces
         -- TODO: Expression Parser
         |= Parser.succeed ExpressionStub
@@ -271,7 +344,7 @@ valuePatternMatchDeclaration =
     Parser.succeed ValuePatternMatchDeclaration
         |= pattern
         |. Parser.spaces
-        |. PExtra.chompChar '='
+        |. Parser.symbol equalsToken
         |. Parser.spaces
         -- TODO: Expression Parser
         |= Parser.succeed ExpressionStub
@@ -286,21 +359,21 @@ pattern =
     Parser.succeed (\pat transform -> transform pat)
         |= Parser.oneOf
             [ Parser.succeed AnythingPattern
-                |. PExtra.chompChar '_'
+                |. Parser.symbol underscoreToken
             , Parser.succeed RecordPattern
-                |. PExtra.chompChar '{'
+                |. Parser.symbol openCurlyBracketToken
                 |. Parser.spaces
                 |= PExtra.sequence
                     { subParser = lowercaseIdentifier
-                    , separator = PExtra.chompChar ','
+                    , separator = Parser.symbol commaToken
                     , spaces = Parser.spaces
                     }
-                |. PExtra.chompChar '}'
+                |. Parser.symbol closeCurlyBracketToken
             , Parser.succeed CtorPattern
                 |= uppercaseIdentifier
                 |= PExtra.sequence
                     { subParser = Parser.lazy (\() -> pattern)
-                    , separator = PExtra.spacesAtLeastOne
+                    , separator = spacesAtLeastOne
                     , spaces = Parser.succeed ()
                     }
             , charLiteral
@@ -318,15 +391,15 @@ pattern =
             ]
         |= Parser.oneOf
             [ Parser.succeed identity
-                |. (PExtra.spacesAtLeastOne |> Parser.backtrackable)
+                |. (spacesAtLeastOne |> Parser.backtrackable)
                 |= Parser.oneOf
                     [ Parser.succeed (\alias_ -> \pat -> AliasPattern pat alias_)
-                        |. Parser.keyword asString
-                        |. PExtra.spacesAtLeastOne
+                        |. Parser.keyword asToken
+                        |. spacesAtLeastOne
                         |= lowercaseIdentifier
                     , Parser.succeed (\rest -> \head -> ConsPattern head rest)
-                        |. Parser.keyword consString
-                        |. PExtra.spacesAtLeastOne
+                        |. Parser.keyword consToken
+                        |. spacesAtLeastOne
                         |= Parser.lazy (\() -> pattern)
                     ]
             , Parser.succeed identity
@@ -348,30 +421,30 @@ expression =
     Parser.succeed (\exp transform -> transform exp)
         |= Parser.oneOf
             [ Parser.succeed NegateExpression
-                |. PExtra.chompChar '!'
+                |. Parser.symbol negateToken
                 |= Parser.lazy (\() -> expression)
             , Parser.succeed
                 (\( firstPattern, restPatterns ) exp ->
                     LambdaExpression firstPattern restPatterns exp
                 )
-                |. PExtra.chompChar '\\'
+                |. Parser.symbol backSlashToken
                 |= PExtra.sequenceAtLeastOne
                     { subParser = pattern
-                    , separator = PExtra.spacesAtLeastOne
+                    , separator = spacesAtLeastOne
                     , spaces = Parser.succeed ()
                     }
                 |. Parser.spaces
-                |. PExtra.chompString "->"
+                |. Parser.symbol arrowToken
                 |. Parser.spaces
                 |= Parser.lazy (\() -> expression)
             , Parser.succeed identity
-                |. PExtra.chompChar '{'
+                |. Parser.symbol openCurlyBracketToken
                 |. Parser.spaces
                 |= Parser.oneOf
                     [ Parser.map RecordExpression
                         (PExtra.sequence
                             { subParser = Parser.lazy (\() -> recordKeyValue)
-                            , separator = PExtra.chompChar ','
+                            , separator = Parser.symbol commaToken
                             , spaces = Parser.spaces
                             }
                         )
@@ -383,21 +456,21 @@ expression =
                         )
                         |= lowercaseIdentifier
                         |. Parser.spaces
-                        |. PExtra.chompChar '|'
+                        |. Parser.symbol pipeToken
                         |. Parser.spaces
                         |= PExtra.sequenceAtLeastOne
                             { subParser = Parser.lazy (\() -> recordKeyValue)
-                            , separator = PExtra.spacesAtLeastOne
+                            , separator = spacesAtLeastOne
                             , spaces = Parser.succeed ()
                             }
                         |. Parser.spaces
                     ]
-                |. PExtra.chompChar '}'
+                |. Parser.symbol closeCurlyBracketToken
             , Parser.succeed AccessorExpression
-                |. PExtra.chompChar '.'
+                |. Parser.symbol dotToken
                 |= lowercaseIdentifier
             , Parser.succeed LetExpression
-                |. Parser.keyword letString
+                |. Parser.keyword letToken
                 |. Parser.spaces
                 |= Parser.oneOf
                     [ Parser.succeed (\value transform -> transform value)
@@ -405,10 +478,12 @@ expression =
                         |. Parser.spaces
                         |= Parser.oneOf
                             [ Parser.succeed (\exp -> \name -> ValueDeclaration name exp)
-                                |. PExtra.chompChar '='
+                                |. Parser.symbol equalsToken
                                 |. Parser.spaces
                                 |= Parser.lazy (\() -> expression)
                             ]
+
+                    -- TODO
                     ]
             , charLiteral
                 |> Parser.map CharExpression
@@ -425,7 +500,7 @@ expression =
             ]
         |= Parser.oneOf
             [ Parser.succeed (\prop -> \exp -> AccessExpression exp prop)
-                |. PExtra.chompChar '.'
+                |. Parser.symbol dotToken
                 |= lowercaseIdentifier
             , Parser.succeed identity
             ]
@@ -436,7 +511,7 @@ recordKeyValue =
     Parser.succeed Tuple.pair
         |= lowercaseIdentifier
         |. Parser.spaces
-        |. PExtra.chompChar '='
+        |. Parser.symbol equalsToken
         |. Parser.spaces
         |= expression
         |. Parser.spaces
@@ -452,28 +527,29 @@ variableLiteral =
         { start = Char.isLower
         , inner = \c -> Char.isAlphaNum c || c == '_'
         , reserved = keywordsAsSet
+        , expecting = ExpectingVariable
         }
 
 
 {-| TODO: Handle escapes
+<https://www.reddit.com/r/haskell/comments/6hhqvk/parsing_strings_with_escaped_characters/>?
 -}
 charLiteral : Parser String
 charLiteral =
-    Parser.succeed ()
-        |. PExtra.chompChar '\''
-        |. Parser.chompIf (\_ -> True)
-        |. PExtra.chompChar '\''
-        |> Parser.getChompedString
-        |> Parser.map (String.dropLeft 1 >> String.dropRight 1)
+    Parser.succeed identity
+        |. Parser.symbol singleQuoteToken
+        |= (Parser.chompIf (\_ -> True) ExpectingCharacter |> Parser.getChompedString)
+        |. Parser.symbol singleQuoteToken
 
 
 {-| TODO: Handle escapes
+<https://www.reddit.com/r/haskell/comments/6hhqvk/parsing_strings_with_escaped_characters/>?
 -}
 stringLiteral : Parser String
 stringLiteral =
     Parser.succeed ()
-        |. PExtra.chompChar '"'
-        |. Parser.chompUntil "\""
+        |. Parser.symbol doubleQuoteToken
+        |. Parser.chompUntil doubleQuoteToken
         |> Parser.getChompedString
         |> Parser.map (String.dropLeft 1)
 
@@ -481,11 +557,13 @@ stringLiteral =
 numberLiteral : (Int -> decodesTo) -> (Float -> decodesTo) -> Parser decodesTo
 numberLiteral fromInt fromFloat =
     Parser.number
-        { int = Just fromInt
-        , hex = Just fromInt
-        , octal = Nothing
-        , binary = Nothing
-        , float = Just fromFloat
+        { int = Ok fromInt
+        , hex = Ok fromInt
+        , octal = Err InvalidNumber
+        , binary = Err InvalidNumber
+        , float = Ok fromFloat
+        , invalid = InvalidNumber
+        , expecting = ExpectingNumber
         }
 
 
@@ -497,17 +575,17 @@ unitTupleTripleLiteral :
     -> Parser decodesTo
 unitTupleTripleLiteral subParser fromUnit fromTuple fromTriple =
     Parser.succeed identity
-        |. PExtra.chompChar '('
+        |. Parser.symbol openParenthesisToken
         |= Parser.oneOf
             [ Parser.succeed fromUnit
-                |. PExtra.chompChar ')'
+                |. Parser.symbol closeParenthesisToken
             , Parser.succeed (\sub fromSub -> fromSub sub)
                 |. Parser.spaces
                 |= subParser
                 |. Parser.spaces
                 |= Parser.oneOf
-                    [ Parser.map (\() -> identity)
-                        (PExtra.chompChar ')')
+                    [ Parser.succeed identity
+                        |. Parser.symbol closeParenthesisToken
                     , Parser.succeed
                         (\second maybeThird ->
                             \first ->
@@ -518,19 +596,19 @@ unitTupleTripleLiteral subParser fromUnit fromTuple fromTriple =
                                     Just third ->
                                         fromTriple first second third
                         )
-                        |. PExtra.chompChar ','
+                        |. Parser.symbol commaToken
                         |. Parser.spaces
                         |= subParser
                         |. Parser.spaces
                         |= Parser.oneOf
                             [ Parser.succeed Just
-                                |. PExtra.chompChar ','
+                                |. Parser.symbol commaToken
                                 |. Parser.spaces
                                 |= subParser
                                 |. Parser.spaces
                             , Parser.succeed Nothing
                             ]
-                        |. PExtra.chompChar ')'
+                        |. Parser.symbol closeParenthesisToken
                     ]
             ]
 
@@ -538,16 +616,16 @@ unitTupleTripleLiteral subParser fromUnit fromTuple fromTriple =
 listLiteral : Parser decodesTo -> Parser (List decodesTo)
 listLiteral subParser =
     Parser.succeed identity
-        |. PExtra.chompChar '['
+        |. Parser.symbol openSquareBracketToken
         |. Parser.spaces
         |= Parser.succeed identity
         |= PExtra.sequence
             { subParser = subParser
-            , separator = PExtra.chompChar ','
+            , separator = Parser.symbol commaToken
             , spaces = Parser.spaces
             }
         |. Parser.spaces
-        |. PExtra.chompChar ']'
+        |. Parser.symbol closeSquareBracketToken
 
 
 
@@ -557,7 +635,7 @@ listLiteral subParser =
 lowercaseIdentifier : Parser String
 lowercaseIdentifier =
     Parser.succeed ()
-        |. Parser.chompIf Char.isLower
+        |. Parser.chompIf Char.isLower ExpectingLowerCharacter
         |. Parser.chompWhile identifierHelp
         |> Parser.getChompedString
 
@@ -565,7 +643,7 @@ lowercaseIdentifier =
 uppercaseIdentifier : Parser String
 uppercaseIdentifier =
     Parser.succeed ()
-        |. Parser.chompIf Char.isUpper
+        |. Parser.chompIf Char.isUpper ExpectingLowerCharacter
         |. Parser.chompWhile identifierHelp
         |> Parser.getChompedString
 
@@ -576,12 +654,7 @@ identifierHelp c =
 
 
 
--- Constants --
-
-
-consString : String
-consString =
-    "::"
+-- Keywords --
 
 
 asString : String
@@ -648,6 +721,184 @@ keywords =
 keywordsAsSet : Set.Set String
 keywordsAsSet =
     Set.fromList keywords
+
+
+
+-- Tokens --
+
+
+asToken : Parser.Token Problem
+asToken =
+    Parser.Token asString ExpectingAs
+
+
+typeToken : Parser.Token Problem
+typeToken =
+    Parser.Token typeString ExpectingType
+
+
+aliasToken : Parser.Token Problem
+aliasToken =
+    Parser.Token aliasString ExpectingAlias
+
+
+moduleToken : Parser.Token Problem
+moduleToken =
+    Parser.Token moduleString ExpectingModule
+
+
+exposingToken : Parser.Token Problem
+exposingToken =
+    Parser.Token exposingString ExpectingExposing
+
+
+portToken : Parser.Token Problem
+portToken =
+    Parser.Token portString ExpectingPort
+
+
+importToken : Parser.Token Problem
+importToken =
+    Parser.Token importString ExpectingImport
+
+
+letToken : Parser.Token Problem
+letToken =
+    Parser.Token letString ExpectingLet
+
+
+inToken : Parser.Token Problem
+inToken =
+    Parser.Token inString ExpectingIn
+
+
+consToken : Parser.Token Problem
+consToken =
+    Parser.Token "::" ExpectingCons
+
+
+openParenthesisToken : Parser.Token Problem
+openParenthesisToken =
+    Parser.Token "(" ExpectingOpenParen
+
+
+closeParenthesisToken : Parser.Token Problem
+closeParenthesisToken =
+    Parser.Token ")" ExpectingCloseParen
+
+
+commaToken : Parser.Token Problem
+commaToken =
+    Parser.Token "," ExpectingComma
+
+
+dotToken : Parser.Token Problem
+dotToken =
+    Parser.Token "." ExpectingDot
+
+
+dotDotToken : Parser.Token Problem
+dotDotToken =
+    Parser.Token ".." ExpectingDotDot
+
+
+plusToken : Parser.Token Problem
+plusToken =
+    Parser.Token "+" ExpectingPlus
+
+
+minusToken : Parser.Token Problem
+minusToken =
+    Parser.Token "-" ExpectingMinus
+
+
+starToken : Parser.Token Problem
+starToken =
+    Parser.Token "*" ExpectingStar
+
+
+forwardSlashToken : Parser.Token Problem
+forwardSlashToken =
+    Parser.Token "/" ExpectingForwardSlash
+
+
+rightCarrotToken : Parser.Token Problem
+rightCarrotToken =
+    Parser.Token ">" ExpectingRightCarrot
+
+
+leftCarrotToken : Parser.Token Problem
+leftCarrotToken =
+    Parser.Token "<" ExpectingLeftCarrot
+
+
+pipeToken : Parser.Token Problem
+pipeToken =
+    Parser.Token "|" ExpectingPipe
+
+
+equalsToken : Parser.Token Problem
+equalsToken =
+    Parser.Token "=" ExpectingEqual
+
+
+backSlashToken : Parser.Token Problem
+backSlashToken =
+    Parser.Token "\\" ExpectingBackSlash
+
+
+arrowToken : Parser.Token Problem
+arrowToken =
+    Parser.Token "->" ExpectingArrow
+
+
+underscoreToken : Parser.Token Problem
+underscoreToken =
+    Parser.Token "_" ExpectingUnderscore
+
+
+openCurlyBracketToken : Parser.Token Problem
+openCurlyBracketToken =
+    Parser.Token "{" ExpectingOpenCurlyBracket
+
+
+closeCurlyBracketToken : Parser.Token Problem
+closeCurlyBracketToken =
+    Parser.Token "}" ExpectingCloseCurlyBracket
+
+
+negateToken : Parser.Token Problem
+negateToken =
+    Parser.Token "!" ExpectingNegate
+
+
+singleQuoteToken : Parser.Token Problem
+singleQuoteToken =
+    Parser.Token "'" ExpectingSingleQuote
+
+
+doubleQuoteToken : Parser.Token Problem
+doubleQuoteToken =
+    Parser.Token "\"" ExpectingDoubleQuote
+
+
+openSquareBracketToken : Parser.Token Problem
+openSquareBracketToken =
+    Parser.Token "[" ExpectingOpenSquareBracket
+
+
+closeSquareBracketToken : Parser.Token Problem
+closeSquareBracketToken =
+    Parser.Token "]" ExpectingCloseSquareBracket
+
+
+
+-- Parser Extras Applied --
+
+
+spacesAtLeastOne : Parser ()
+spacesAtLeastOne =
+    PExtra.spacesAtLeastOne ExpectingSpaces
 
 
 

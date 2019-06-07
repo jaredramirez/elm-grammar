@@ -3,7 +3,7 @@ module ParserTest exposing (test)
 import Elm.AST as Elm
 import Elm.Parser as Elm
 import Expect
-import Parser
+import Parser.Advanced as Parser
 import Test
 
 
@@ -502,6 +502,15 @@ operatorTests =
                         ">="
                 in
                 Expect.equal
+                    (Ok Elm.GreaterThanOrEqual)
+                    (Parser.run Elm.operator source)
+        , Test.test ">" <|
+            \_ ->
+                let
+                    source =
+                        ">"
+                in
+                Expect.equal
                     (Ok Elm.GreaterThan)
                     (Parser.run Elm.operator source)
         , Test.test "<=" <|
@@ -509,6 +518,15 @@ operatorTests =
                 let
                     source =
                         "<="
+                in
+                Expect.equal
+                    (Ok Elm.LessThanOrEqual)
+                    (Parser.run Elm.operator source)
+        , Test.test "<" <|
+            \_ ->
+                let
+                    source =
+                        "<"
                 in
                 Expect.equal
                     (Ok Elm.LessThan)

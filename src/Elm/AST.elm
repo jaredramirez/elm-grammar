@@ -65,7 +65,9 @@ type Operator
     | ParseKeep
     | ParseIgnore
     | GreaterThan
+    | GreaterThanOrEqual
     | LessThan
+    | LessThanOrEqual
 
 
 type ModuleName

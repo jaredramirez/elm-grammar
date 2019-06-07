@@ -87,7 +87,6 @@ type Declaration
 type Expression
     = ExpressionStub
     | VarExpression LowercaseIdentifier
-    | QualVarExpression ModuleName LowercaseIdentifier
     | ListExpression (List Expression)
     | RecordExpression (List ( LowercaseIdentifier, Expression ))
     | NegateExpression Expression
@@ -95,7 +94,8 @@ type Expression
     | CallExpression Expression (List Expression)
     | LetExpression Declaration
     | AccessorExpression LowercaseIdentifier
-    | UpdateExpression LowercaseIdentifier (List ( LowercaseIdentifier, Expression ))
+    | AccessExpression Expression LowercaseIdentifier
+    | UpdateExpression LowercaseIdentifier ( LowercaseIdentifier, Expression ) (List ( LowercaseIdentifier, Expression ))
     | TupleExpression Expression Expression
     | TripleExpression Expression Expression Expression
     | UnitExpression
@@ -103,6 +103,9 @@ type Expression
     | FloatExpression Float
     | CharExpression String
     | StringExpression String
+      -- TODO
+    | BinOpExpression
+    | QualVarExpression ModuleName LowercaseIdentifier
 
 
 type Pattern
@@ -120,6 +123,8 @@ type Pattern
     | CtorPattern UppercaseIdentifier (List Pattern)
     | ConsPattern Pattern Pattern
     | AliasPattern Pattern LowercaseIdentifier
+      -- TODO
+    | QualCtorPattern ModuleName UppercaseIdentifier (List Pattern)
 
 
 type alias LowercaseIdentifier =

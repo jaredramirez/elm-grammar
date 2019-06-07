@@ -19,6 +19,7 @@ test =
         , moduleImportTests
         , sourceTests
         , patternTests
+        , expressionTests
         , declarationTests
         ]
 
@@ -1404,6 +1405,195 @@ patternTests =
                         )
                     )
                     (Parser.run Elm.pattern source)
+        ]
+
+
+expressionTests : Test.Test
+expressionTests =
+    Test.describe "Expression Tests"
+        [ Test.describe "Literals"
+            [ Test.test "Char" <|
+                \_ ->
+                    let
+                        source =
+                            "'c'"
+                    in
+                    Expect.equal
+                        (Ok (Elm.CharExpression "c"))
+                        (Parser.run Elm.expression source)
+            , Test.test "String" <|
+                \_ ->
+                    let
+                        source =
+                            "\"hello\""
+                    in
+                    Expect.equal
+                        (Ok (Elm.StringExpression "hello"))
+                        (Parser.run Elm.expression source)
+            , Test.test "Int" <|
+                \_ ->
+                    let
+                        source =
+                            "12"
+                    in
+                    Expect.equal
+                        (Ok (Elm.IntExpression 12))
+                        (Parser.run Elm.expression source)
+            , Test.test "Float" <|
+                \_ ->
+                    let
+                        source =
+                            "1.2"
+                    in
+                    Expect.equal
+                        (Ok (Elm.FloatExpression 1.2))
+                        (Parser.run Elm.expression source)
+            ]
+        , Test.test "Variable" <|
+            \_ ->
+                let
+                    source =
+                        "world"
+                in
+                Expect.equal
+                    (Ok (Elm.VarExpression "world"))
+                    (Parser.run Elm.expression source)
+        , Test.test "Record" <|
+            \_ ->
+                let
+                    source =
+                        "{ hello = world }"
+                in
+                Expect.equal
+                    (Ok (Elm.RecordExpression [ ( "hello", Elm.VarExpression "world" ) ]))
+                    (Parser.run Elm.expression source)
+        , Test.test "Record no spacing" <|
+            \_ ->
+                let
+                    source =
+                        "{hello=world}"
+                in
+                Expect.equal
+                    (Ok (Elm.RecordExpression [ ( "hello", Elm.VarExpression "world" ) ]))
+                    (Parser.run Elm.expression source)
+        , Test.test "Record empty" <|
+            \_ ->
+                let
+                    source =
+                        "{}"
+                in
+                Expect.equal
+                    (Ok (Elm.RecordExpression []))
+                    (Parser.run Elm.expression source)
+        , Test.test "List empty" <|
+            \_ ->
+                let
+                    source =
+                        "[]"
+                in
+                Expect.equal
+                    (Ok (Elm.ListExpression []))
+                    (Parser.run Elm.expression source)
+        , Test.test "List mixed" <|
+            \_ ->
+                let
+                    source =
+                        "['c', 12, 1.2]"
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.ListExpression
+                            [ Elm.CharExpression "c"
+                            , Elm.IntExpression 12
+                            , Elm.FloatExpression 1.2
+                            ]
+                        )
+                    )
+                    (Parser.run Elm.expression source)
+        , Test.test "unit" <|
+            \_ ->
+                let
+                    source =
+                        "()"
+                in
+                Expect.equal (Ok Elm.UnitExpression)
+                    (Parser.run Elm.expression source)
+        , Test.test "tuple" <|
+            \_ ->
+                let
+                    source =
+                        "(1, 2)"
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.TupleExpression
+                            (Elm.IntExpression 1)
+                            (Elm.IntExpression 2)
+                        )
+                    )
+                    (Parser.run Elm.expression source)
+        , Test.test "triple" <|
+            \_ ->
+                let
+                    source =
+                        "(1, 2, 3)"
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.TripleExpression
+                            (Elm.IntExpression 1)
+                            (Elm.IntExpression 2)
+                            (Elm.IntExpression 3)
+                        )
+                    )
+                    (Parser.run Elm.expression source)
+        , Test.test "negated (invalid)" <|
+            \_ ->
+                let
+                    source =
+                        "!'c'"
+                in
+                Expect.equal
+                    (Ok (Elm.NegateExpression (Elm.CharExpression "c")))
+                    (Parser.run Elm.expression source)
+        , Test.test "lambda" <|
+            \_ ->
+                let
+                    source =
+                        "\\hello world -> world"
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.LambdaExpression
+                            (Elm.LowerPattern "hello")
+                            [ Elm.LowerPattern "world" ]
+                            (Elm.VarExpression "world")
+                        )
+                    )
+                    (Parser.run Elm.expression source)
+        , Test.test "access" <|
+            \_ ->
+                let
+                    source =
+                        "hello.world"
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.AccessExpression
+                            (Elm.VarExpression "hello")
+                            "world"
+                        )
+                    )
+                    (Parser.run Elm.expression source)
+        , Test.test "accessor" <|
+            \_ ->
+                let
+                    source =
+                        ".world"
+                in
+                Expect.equal
+                    (Ok (Elm.AccessorExpression "world"))
+                    (Parser.run Elm.expression source)
         ]
 
 

@@ -3,6 +3,7 @@ module Elm.Parser exposing
     , elm
     , exposedItem
     , exposingList
+    , expression
     , lowercaseIdentifier
     , moduleDeclaration
     , moduleImport
@@ -306,14 +307,14 @@ pattern =
                 |> Parser.map CharPattern
             , stringLiteral
                 |> Parser.map StringPattern
+            , variableLiteral |> Parser.map LowerPattern
+            , numberLiteral IntPattern FloatPattern
             , listLiteral (Parser.lazy (\() -> pattern))
                 |> Parser.map ListPattern
-            , variableLiteral |> Parser.map LowerPattern
             , unitTupleTripleLiteral (Parser.lazy (\() -> pattern))
                 UnitPattern
                 TuplePattern
                 TriplePattern
-            , numberLiteral IntPattern FloatPattern
             ]
         |= Parser.oneOf
             [ Parser.succeed identity
@@ -337,38 +338,108 @@ pattern =
 
 
 expression : Parser Expression
+
+
+
+-- TODO: Call expression
+
+
 expression =
-    Parser.oneOf
-        [ Parser.succeed RecordExpression
-            |. PExtra.chompChar '{'
-            |. Parser.spaces
-            |= PExtra.sequence
-                { subParser =
-                    Parser.succeed Tuple.pair
+    Parser.succeed (\exp transform -> transform exp)
+        |= Parser.oneOf
+            [ Parser.succeed NegateExpression
+                |. PExtra.chompChar '!'
+                |= Parser.lazy (\() -> expression)
+            , Parser.succeed
+                (\( firstPattern, restPatterns ) exp ->
+                    LambdaExpression firstPattern restPatterns exp
+                )
+                |. PExtra.chompChar '\\'
+                |= PExtra.sequenceAtLeastOne
+                    { subParser = pattern
+                    , separator = PExtra.spacesAtLeastOne
+                    , spaces = Parser.succeed ()
+                    }
+                |. Parser.spaces
+                |. PExtra.chompString "->"
+                |. Parser.spaces
+                |= Parser.lazy (\() -> expression)
+            , Parser.succeed identity
+                |. PExtra.chompChar '{'
+                |. Parser.spaces
+                |= Parser.oneOf
+                    [ Parser.map RecordExpression
+                        (PExtra.sequence
+                            { subParser = Parser.lazy (\() -> recordKeyValue)
+                            , separator = PExtra.chompChar ','
+                            , spaces = Parser.spaces
+                            }
+                        )
+                    , Parser.succeed
+                        (\var ( firstProperty, restProperties ) ->
+                            UpdateExpression var
+                                firstProperty
+                                restProperties
+                        )
                         |= lowercaseIdentifier
                         |. Parser.spaces
-                        |. PExtra.chompChar '='
+                        |. PExtra.chompChar '|'
                         |. Parser.spaces
-                        |= Parser.lazy (\() -> expression)
-                , separator = PExtra.chompChar ','
-                , spaces = Parser.spaces
-                }
-            |. PExtra.chompChar '}'
-        , charLiteral
-            |> Parser.map CharExpression
-        , stringLiteral
-            |> Parser.map StringExpression
-        , listLiteral (Parser.lazy (\() -> expression))
-            |> Parser.map ListExpression
-        , variableLiteral |> Parser.map VarExpression
-        , unitTupleTripleLiteral (Parser.lazy (\() -> expression))
-            UnitExpression
-            TupleExpression
-            TripleExpression
-        , numberLiteral IntExpression FloatExpression
+                        |= PExtra.sequenceAtLeastOne
+                            { subParser = Parser.lazy (\() -> recordKeyValue)
+                            , separator = PExtra.spacesAtLeastOne
+                            , spaces = Parser.succeed ()
+                            }
+                        |. Parser.spaces
+                    ]
+                |. PExtra.chompChar '}'
+            , Parser.succeed AccessorExpression
+                |. PExtra.chompChar '.'
+                |= lowercaseIdentifier
+            , Parser.succeed LetExpression
+                |. Parser.keyword letString
+                |. Parser.spaces
+                |= Parser.oneOf
+                    [ Parser.succeed (\value transform -> transform value)
+                        |= lowercaseIdentifier
+                        |. Parser.spaces
+                        |= Parser.oneOf
+                            [ Parser.succeed (\exp -> \name -> ValueDeclaration name exp)
+                                |. PExtra.chompChar '='
+                                |. Parser.spaces
+                                |= Parser.lazy (\() -> expression)
+                            ]
+                    ]
+            , charLiteral
+                |> Parser.map CharExpression
+            , stringLiteral
+                |> Parser.map StringExpression
+            , variableLiteral |> Parser.map VarExpression
+            , listLiteral (Parser.lazy (\() -> expression))
+                |> Parser.map ListExpression
+            , unitTupleTripleLiteral (Parser.lazy (\() -> expression))
+                UnitExpression
+                TupleExpression
+                TripleExpression
+            , numberLiteral IntExpression FloatExpression
+            ]
+        |= Parser.oneOf
+            [ Parser.succeed (\prop -> \exp -> AccessExpression exp prop)
+                |. PExtra.chompChar '.'
+                |= lowercaseIdentifier
+            , Parser.succeed identity
+            ]
 
-        -- TODO: QualVarExpression and the rest
-        ]
+
+recordKeyValue : Parser ( LowercaseIdentifier, Expression )
+recordKeyValue =
+    Parser.succeed Tuple.pair
+        |= lowercaseIdentifier
+        |. Parser.spaces
+        |. PExtra.chompChar '='
+        |. Parser.spaces
+        |= expression
+        |. Parser.spaces
 
 
 
@@ -469,17 +540,14 @@ listLiteral subParser =
     Parser.succeed identity
         |. PExtra.chompChar '['
         |. Parser.spaces
-        |= Parser.oneOf
-            [ Parser.succeed []
-                |. PExtra.chompChar ']'
-            , Parser.succeed identity
-                |= PExtra.sequence
-                    { subParser = subParser
-                    , separator = PExtra.chompChar ','
-                    , spaces = Parser.spaces
-                    }
-                |. PExtra.chompChar ']'
-            ]
+        |= Parser.succeed identity
+        |= PExtra.sequence
+            { subParser = subParser
+            , separator = PExtra.chompChar ','
+            , spaces = Parser.spaces
+            }
+        |. Parser.spaces
+        |. PExtra.chompChar ']'
 
 
 
@@ -551,10 +619,20 @@ importString =
     "import"
 
 
+letString : String
+letString =
+    "let"
+
+
+inString : String
+inString =
+    "in"
+
+
 keywords : List String
 keywords =
-    [ "let"
-    , "in"
+    [ letString
+    , inString
     , "case"
     , "of"
     , asString

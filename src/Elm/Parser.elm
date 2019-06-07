@@ -24,7 +24,40 @@ type alias Parser a =
 
 
 type Context
-    = Context
+    = CRecordKeyValue
+    | CExpression
+    | CNegateExpression
+    | CLambdaExpression
+    | CRecordExpression
+    | CUpdateExpression
+    | CAccessorExpression
+    | CLetExpression
+    | CAccessExpression
+    | CPattern
+    | CRecordPattern
+    | CCtorPattern
+    | CAliasPattern
+    | CConsPattern
+    | CChar
+    | CString
+    | CVariable
+    | CList
+    | CNumber
+    | CUnitTupleTripleParens
+    | CTupleTripleParens
+    | CTupleTriple
+    | CTriple
+    | CValueFunctionDeclaration
+    | CFunctionDeclaration
+    | CValueDeclaration
+    | CValuePatternMatchDeclaration
+    | CModuleName
+    | COperator
+    | CExposedItems
+    | CExposedConstructors
+    | CExposingList
+    | CModuleImport
+    | CModuleDeclaration
 
 
 type Problem
@@ -102,64 +135,27 @@ elm =
 
 moduleDeclaration : Parser ModuleDeclaration
 moduleDeclaration =
-    Parser.oneOf
-        [ Parser.succeed
-            (\name maybeExposingList ->
-                case maybeExposingList of
-                    Nothing ->
-                        ModuleDeclarationPartial name
+    Parser.inContext CModuleDeclaration <|
+        Parser.oneOf
+            [ Parser.succeed
+                (\name maybeExposingList ->
+                    case maybeExposingList of
+                        Nothing ->
+                            ModuleDeclarationPartial name
 
-                    Just exposedList ->
-                        ModuleDeclaration name exposedList
-            )
-            |. Parser.spaces
-            |. Parser.oneOf
-                [ Parser.keyword moduleToken
-                , Parser.succeed ()
-                    |. Parser.keyword portToken
-                    |. Parser.spaces
-                    |. Parser.keyword moduleToken
-                ]
-            |. Parser.spaces
-            |= moduleName
-            |. Parser.spaces
-            |= Parser.oneOf
-                [ Parser.succeed identity
-                    |. Parser.keyword exposingToken
-                    |. Parser.spaces
-                    |= Parser.oneOf
-                        [ exposingList |> Parser.map Just
-                        , Parser.succeed Nothing
-                        ]
-                , Parser.succeed Nothing
-                ]
-        ]
-
-
-
--- Module Imports --
-
-
-moduleImport : Parser ModuleImport
-moduleImport =
-    Parser.succeed identity
-        |. Parser.spaces
-        |. Parser.keyword importToken
-        |. Parser.spaces
-        |= Parser.oneOf
-            [ Parser.succeed ModuleImport
-                |= moduleName
+                        Just exposedList ->
+                            ModuleDeclaration name exposedList
+                )
                 |. Parser.spaces
-                |= Parser.oneOf
-                    [ Parser.succeed identity
-                        |. Parser.token asToken
+                |. Parser.oneOf
+                    [ Parser.keyword moduleToken
+                    , Parser.succeed ()
+                        |. Parser.keyword portToken
                         |. Parser.spaces
-                        |= Parser.oneOf
-                            [ uppercaseIdentifier |> Parser.map Alias
-                            , Parser.succeed AliasPartial
-                            ]
-                    , Parser.succeed AliasNone
+                        |. Parser.keyword moduleToken
                     ]
+                |. Parser.spaces
+                |= moduleName
                 |. Parser.spaces
                 |= Parser.oneOf
                     [ Parser.succeed identity
@@ -171,8 +167,47 @@ moduleImport =
                             ]
                     , Parser.succeed Nothing
                     ]
-            , Parser.succeed ModuleImportIncomplete
             ]
+
+
+
+-- Module Imports --
+
+
+moduleImport : Parser ModuleImport
+moduleImport =
+    Parser.inContext CModuleImport <|
+        Parser.succeed identity
+            |. Parser.spaces
+            |. Parser.keyword importToken
+            |. Parser.spaces
+            |= Parser.oneOf
+                [ Parser.succeed ModuleImport
+                    |= moduleName
+                    |. Parser.spaces
+                    |= Parser.oneOf
+                        [ Parser.succeed identity
+                            |. Parser.token asToken
+                            |. Parser.spaces
+                            |= Parser.oneOf
+                                [ uppercaseIdentifier |> Parser.map Alias
+                                , Parser.succeed AliasPartial
+                                ]
+                        , Parser.succeed AliasNone
+                        ]
+                    |. Parser.spaces
+                    |= Parser.oneOf
+                        [ Parser.succeed identity
+                            |. Parser.keyword exposingToken
+                            |. Parser.spaces
+                            |= Parser.oneOf
+                                [ exposingList |> Parser.map Just
+                                , Parser.succeed Nothing
+                                ]
+                        , Parser.succeed Nothing
+                        ]
+                , Parser.succeed ModuleImportIncomplete
+                ]
 
 
 
@@ -181,63 +216,66 @@ moduleImport =
 
 exposingList : Parser ExposingList
 exposingList =
-    Parser.oneOf
-        [ Parser.succeed identity
-            |. Parser.symbol openParenthesisToken
-            |. Parser.spaces
-            |= Parser.oneOf
-                [ Parser.succeed ExposingListDoubleDot
-                    |. Parser.token consToken
-                , PExtra.sequence
-                    { subParser = exposedItem
-                    , separator = Parser.symbol commaToken
-                    , spaces = Parser.spaces
-                    }
-                    |> Parser.map ExposingList
-                ]
-            |. Parser.oneOf
-                [ Parser.symbol closeParenthesisToken
-                , Parser.succeed ()
-                ]
-        ]
+    Parser.inContext CExposingList <|
+        Parser.oneOf
+            [ Parser.succeed identity
+                |. Parser.symbol openParenthesisToken
+                |. Parser.spaces
+                |= Parser.oneOf
+                    [ Parser.succeed ExposingListDoubleDot
+                        |. Parser.token consToken
+                    , PExtra.sequence
+                        { subParser = exposedItem
+                        , separator = Parser.symbol commaToken
+                        , spaces = Parser.spaces
+                        }
+                        |> Parser.map ExposingList
+                    ]
+                |. Parser.oneOf
+                    [ Parser.symbol closeParenthesisToken
+                    , Parser.succeed ()
+                    ]
+            ]
 
 
 exposedItem : Parser ExposedItem
 exposedItem =
-    Parser.oneOf
-        [ lowercaseIdentifier |> Parser.map ExposedValue
-        , Parser.succeed (\ident constructors -> ExposedType ident constructors)
-            |= uppercaseIdentifier
-            |= exposedConstructors
-        , Parser.succeed ExposedOperator
-            |. Parser.symbol openParenthesisToken
-            |= operator
-            |. Parser.symbol closeParenthesisToken
-        ]
+    Parser.inContext CExposedItems <|
+        Parser.oneOf
+            [ lowercaseIdentifier |> Parser.map ExposedValue
+            , Parser.succeed (\ident constructors -> ExposedType ident constructors)
+                |= uppercaseIdentifier
+                |= exposedConstructors
+            , Parser.succeed ExposedOperator
+                |. Parser.symbol openParenthesisToken
+                |= operator
+                |. Parser.symbol closeParenthesisToken
+            ]
 
 
 exposedConstructors : Parser ExposedCustomTypeConstructors
 exposedConstructors =
-    Parser.oneOf
-        [ Parser.succeed identity
-            |. Parser.symbol openParenthesisToken
-            |. Parser.spaces
-            |= Parser.oneOf
-                [ Parser.token dotDotToken
-                    |> Parser.map (\() -> ExposedConstructorsDotDot)
-                , PExtra.sequence
-                    { subParser = uppercaseIdentifier
-                    , separator = Parser.symbol commaToken
-                    , spaces = Parser.spaces
-                    }
-                    |> Parser.map ExposedConstructors
-                ]
-            |. Parser.oneOf
-                [ Parser.symbol closeParenthesisToken
-                , Parser.succeed ()
-                ]
-        , Parser.succeed NoExposedConstructors
-        ]
+    Parser.inContext CExposedConstructors <|
+        Parser.oneOf
+            [ Parser.succeed identity
+                |. Parser.symbol openParenthesisToken
+                |. Parser.spaces
+                |= Parser.oneOf
+                    [ Parser.token dotDotToken
+                        |> Parser.map (\() -> ExposedConstructorsDotDot)
+                    , PExtra.sequence
+                        { subParser = uppercaseIdentifier
+                        , separator = Parser.symbol commaToken
+                        , spaces = Parser.spaces
+                        }
+                        |> Parser.map ExposedConstructors
+                    ]
+                |. Parser.oneOf
+                    [ Parser.symbol closeParenthesisToken
+                    , Parser.succeed ()
+                    ]
+            , Parser.succeed NoExposedConstructors
+            ]
 
 
 
@@ -246,42 +284,43 @@ exposedConstructors =
 
 operator : Parser Operator
 operator =
-    Parser.oneOf
-        [ Parser.succeed identity
-            |. Parser.symbol plusToken
-            |= Parser.oneOf
-                [ Parser.symbol plusToken |> Parser.map (\() -> PlusPlus)
-                , Parser.succeed Plus
-                ]
-        , Parser.succeed identity
-            |. Parser.symbol forwardSlashToken
-            |= Parser.oneOf
-                [ Parser.symbol forwardSlashToken |> Parser.map (\() -> DivideInt)
-                , Parser.succeed DivideFloat
-                ]
-        , Parser.succeed identity
-            |. Parser.symbol pipeToken
-            |= Parser.oneOf
-                [ Parser.symbol rightCarrotToken |> Parser.map (\() -> RightPipe)
-                , Parser.symbol equalsToken |> Parser.map (\() -> ParseKeep)
-                , Parser.symbol dotToken |> Parser.map (\() -> ParseIgnore)
-                ]
-        , Parser.succeed identity
-            |. Parser.symbol rightCarrotToken
-            |= Parser.oneOf
-                [ Parser.symbol equalsToken |> Parser.map (\() -> GreaterThanOrEqual)
-                , Parser.succeed GreaterThan
-                ]
-        , Parser.succeed identity
-            |. Parser.symbol leftCarrotToken
-            |= Parser.oneOf
-                [ Parser.symbol pipeToken |> Parser.map (\() -> LeftPipe)
-                , Parser.symbol equalsToken |> Parser.map (\() -> LessThanOrEqual)
-                , Parser.succeed LessThan
-                ]
-        , Parser.symbol minusToken |> Parser.map (\() -> Minus)
-        , Parser.symbol starToken |> Parser.map (\() -> Multiply)
-        ]
+    Parser.inContext COperator <|
+        Parser.oneOf
+            [ Parser.succeed identity
+                |. Parser.symbol plusToken
+                |= Parser.oneOf
+                    [ Parser.symbol plusToken |> Parser.map (\() -> PlusPlus)
+                    , Parser.succeed Plus
+                    ]
+            , Parser.succeed identity
+                |. Parser.symbol forwardSlashToken
+                |= Parser.oneOf
+                    [ Parser.symbol forwardSlashToken |> Parser.map (\() -> DivideInt)
+                    , Parser.succeed DivideFloat
+                    ]
+            , Parser.succeed identity
+                |. Parser.symbol pipeToken
+                |= Parser.oneOf
+                    [ Parser.symbol rightCarrotToken |> Parser.map (\() -> RightPipe)
+                    , Parser.symbol equalsToken |> Parser.map (\() -> ParseKeep)
+                    , Parser.symbol dotToken |> Parser.map (\() -> ParseIgnore)
+                    ]
+            , Parser.succeed identity
+                |. Parser.symbol rightCarrotToken
+                |= Parser.oneOf
+                    [ Parser.symbol equalsToken |> Parser.map (\() -> GreaterThanOrEqual)
+                    , Parser.succeed GreaterThan
+                    ]
+            , Parser.succeed identity
+                |. Parser.symbol leftCarrotToken
+                |= Parser.oneOf
+                    [ Parser.symbol pipeToken |> Parser.map (\() -> LeftPipe)
+                    , Parser.symbol equalsToken |> Parser.map (\() -> LessThanOrEqual)
+                    , Parser.succeed LessThan
+                    ]
+            , Parser.symbol minusToken |> Parser.map (\() -> Minus)
+            , Parser.symbol starToken |> Parser.map (\() -> Multiply)
+            ]
 
 
 
@@ -290,12 +329,14 @@ operator =
 
 moduleName : Parser ModuleName
 moduleName =
-    PExtra.sequenceAtLeastOne
-        { subParser = uppercaseIdentifier
-        , separator = Parser.symbol dotToken
-        , spaces = Parser.succeed ()
-        }
-        |> Parser.map (\( head, rest ) -> ModuleName head rest)
+    Parser.inContext CModuleName
+        (PExtra.sequenceAtLeastOne
+            { subParser = uppercaseIdentifier
+            , separator = Parser.symbol dotToken
+            , spaces = Parser.succeed ()
+            }
+            |> Parser.map (\( head, rest ) -> ModuleName head rest)
+        )
 
 
 
@@ -314,40 +355,44 @@ declaration =
 
 valueOrFunctionDeclaration : Parser Declaration
 valueOrFunctionDeclaration =
-    Parser.succeed (\name toDeclaration exp -> toDeclaration name exp)
-        |= lowercaseIdentifier
-        |. Parser.spaces
-        |= Parser.oneOf
-            [ Parser.succeed
-                (\( firstPattern, restPatterns ) ->
-                    \name exp ->
-                        FunctionDeclaration name
-                            firstPattern
-                            restPatterns
-                            exp
-                )
-                |= PExtra.sequenceAtLeastOne
-                    { subParser = pattern
-                    , separator = spacesAtLeastOne
-                    , spaces = Parser.succeed ()
-                    }
-            , Parser.succeed (\name exp -> ValueDeclaration name exp)
-            ]
-        |. Parser.symbol equalsToken
-        |. Parser.spaces
-        -- TODO: Expression Parser
-        |= Parser.succeed ExpressionStub
+    Parser.inContext CValueFunctionDeclaration <|
+        Parser.succeed (\name toDeclaration exp -> toDeclaration name exp)
+            |= lowercaseIdentifier
+            |. Parser.spaces
+            |= Parser.oneOf
+                [ Parser.inContext CFunctionDeclaration <|
+                    Parser.succeed
+                        (\( firstPattern, restPatterns ) ->
+                            \name exp ->
+                                FunctionDeclaration name
+                                    firstPattern
+                                    restPatterns
+                                    exp
+                        )
+                        |= PExtra.sequenceAtLeastOne
+                            { subParser = pattern
+                            , separator = spacesAtLeastOne
+                            , spaces = Parser.succeed ()
+                            }
+                , Parser.inContext CValueDeclaration <|
+                    Parser.succeed (\name exp -> ValueDeclaration name exp)
+                ]
+            |. Parser.symbol equalsToken
+            |. Parser.spaces
+            -- TODO: Expression Parser
+            |= Parser.succeed ExpressionStub
 
 
 valuePatternMatchDeclaration : Parser Declaration
 valuePatternMatchDeclaration =
-    Parser.succeed ValuePatternMatchDeclaration
-        |= pattern
-        |. Parser.spaces
-        |. Parser.symbol equalsToken
-        |. Parser.spaces
-        -- TODO: Expression Parser
-        |= Parser.succeed ExpressionStub
+    Parser.inContext CValuePatternMatchDeclaration <|
+        Parser.succeed ValuePatternMatchDeclaration
+            |= pattern
+            |. Parser.spaces
+            |. Parser.symbol equalsToken
+            |. Parser.spaces
+            -- TODO: Expression Parser
+            |= Parser.succeed ExpressionStub
 
 
 
@@ -356,54 +401,57 @@ valuePatternMatchDeclaration =
 
 pattern : Parser Pattern
 pattern =
-    Parser.succeed (\pat transform -> transform pat)
-        |= Parser.oneOf
-            [ Parser.succeed AnythingPattern
-                |. Parser.symbol underscoreToken
-            , Parser.succeed RecordPattern
-                |. Parser.symbol openCurlyBracketToken
-                |. Parser.spaces
-                |= PExtra.sequence
-                    { subParser = lowercaseIdentifier
-                    , separator = Parser.symbol commaToken
-                    , spaces = Parser.spaces
-                    }
-                |. Parser.symbol closeCurlyBracketToken
-            , Parser.succeed CtorPattern
-                |= uppercaseIdentifier
-                |= PExtra.sequence
-                    { subParser = Parser.lazy (\() -> pattern)
-                    , separator = spacesAtLeastOne
-                    , spaces = Parser.succeed ()
-                    }
-            , charLiteral
-                |> Parser.map CharPattern
-            , stringLiteral
-                |> Parser.map StringPattern
-            , variableLiteral |> Parser.map LowerPattern
-            , numberLiteral IntPattern FloatPattern
-            , listLiteral (Parser.lazy (\() -> pattern))
-                |> Parser.map ListPattern
-            , unitTupleTripleLiteral (Parser.lazy (\() -> pattern))
-                UnitPattern
-                TuplePattern
-                TriplePattern
-            ]
-        |= Parser.oneOf
-            [ Parser.succeed identity
-                |. (spacesAtLeastOne |> Parser.backtrackable)
-                |= Parser.oneOf
-                    [ Parser.succeed (\alias_ -> \pat -> AliasPattern pat alias_)
-                        |. Parser.keyword asToken
-                        |. spacesAtLeastOne
-                        |= lowercaseIdentifier
-                    , Parser.succeed (\rest -> \head -> ConsPattern head rest)
-                        |. Parser.keyword consToken
-                        |. spacesAtLeastOne
-                        |= Parser.lazy (\() -> pattern)
-                    ]
-            , Parser.succeed identity
-            ]
+    Parser.inContext CPattern <|
+        Parser.succeed (\pat transform -> transform pat)
+            |= Parser.oneOf
+                [ Parser.succeed AnythingPattern
+                    |. Parser.symbol underscoreToken
+                , Parser.inContext CRecordPattern <|
+                    Parser.succeed RecordPattern
+                        |. Parser.symbol openCurlyBracketToken
+                        |. Parser.spaces
+                        |= PExtra.sequence
+                            { subParser = lowercaseIdentifier
+                            , separator = Parser.symbol commaToken
+                            , spaces = Parser.spaces
+                            }
+                        |. Parser.symbol closeCurlyBracketToken
+                , Parser.inContext CCtorPattern <|
+                    Parser.succeed CtorPattern
+                        |= uppercaseIdentifier
+                        |= PExtra.sequence
+                            { subParser = Parser.lazy (\() -> pattern)
+                            , separator = spacesAtLeastOne
+                            , spaces = Parser.succeed ()
+                            }
+                , charLiteral |> Parser.map CharPattern
+                , stringLiteral |> Parser.map StringPattern
+                , variableLiteral |> Parser.map LowerPattern
+                , numberLiteral IntPattern FloatPattern
+                , listLiteral (Parser.lazy (\() -> pattern))
+                    |> Parser.map ListPattern
+                , unitTupleTripleParensLiteral (Parser.lazy (\() -> pattern))
+                    UnitPattern
+                    TuplePattern
+                    TriplePattern
+                ]
+            |= Parser.oneOf
+                [ Parser.succeed identity
+                    |. (spacesAtLeastOne |> Parser.backtrackable)
+                    |= Parser.oneOf
+                        [ Parser.inContext CAliasPattern <|
+                            Parser.succeed (\alias_ -> \pat -> AliasPattern pat alias_)
+                                |. Parser.keyword asToken
+                                |. spacesAtLeastOne
+                                |= lowercaseIdentifier
+                        , Parser.inContext CConsPattern <|
+                            Parser.succeed (\rest -> \head -> ConsPattern head rest)
+                                |. Parser.keyword consToken
+                                |. spacesAtLeastOne
+                                |= Parser.lazy (\() -> pattern)
+                        ]
+                , Parser.succeed identity
+                ]
 
 
 
@@ -411,110 +459,116 @@ pattern =
 
 
 expression : Parser Expression
-
-
-
--- TODO: Call expression
-
-
 expression =
-    Parser.succeed (\exp transform -> transform exp)
-        |= Parser.oneOf
-            [ Parser.succeed NegateExpression
-                |. Parser.symbol negateToken
-                |= Parser.lazy (\() -> expression)
-            , Parser.succeed
-                (\( firstPattern, restPatterns ) exp ->
-                    LambdaExpression firstPattern restPatterns exp
-                )
-                |. Parser.symbol backSlashToken
-                |= PExtra.sequenceAtLeastOne
-                    { subParser = pattern
-                    , separator = spacesAtLeastOne
-                    , spaces = Parser.succeed ()
-                    }
-                |. Parser.spaces
-                |. Parser.symbol arrowToken
-                |. Parser.spaces
-                |= Parser.lazy (\() -> expression)
-            , Parser.succeed identity
-                |. Parser.symbol openCurlyBracketToken
-                |. Parser.spaces
-                |= Parser.oneOf
-                    [ Parser.map RecordExpression
-                        (PExtra.sequence
-                            { subParser = Parser.lazy (\() -> recordKeyValue)
-                            , separator = Parser.symbol commaToken
-                            , spaces = Parser.spaces
-                            }
+    Parser.inContext CExpression <|
+        Parser.succeed (\exp transform -> transform exp)
+            |= Parser.oneOf
+                [ Parser.inContext CNegateExpression <|
+                    Parser.succeed NegateExpression
+                        |. Parser.symbol negateToken
+                        |= Parser.lazy (\() -> expression)
+                , Parser.inContext CLambdaExpression <|
+                    Parser.succeed
+                        (\( firstPattern, restPatterns ) exp ->
+                            LambdaExpression firstPattern restPatterns exp
                         )
-                    , Parser.succeed
-                        (\var ( firstProperty, restProperties ) ->
-                            UpdateExpression var
-                                firstProperty
-                                restProperties
-                        )
-                        |= lowercaseIdentifier
-                        |. Parser.spaces
-                        |. Parser.symbol pipeToken
-                        |. Parser.spaces
+                        |. Parser.symbol backSlashToken
                         |= PExtra.sequenceAtLeastOne
-                            { subParser = Parser.lazy (\() -> recordKeyValue)
+                            { subParser = pattern
                             , separator = spacesAtLeastOne
                             , spaces = Parser.succeed ()
                             }
                         |. Parser.spaces
-                    ]
-                |. Parser.symbol closeCurlyBracketToken
-            , Parser.succeed AccessorExpression
-                |. Parser.symbol dotToken
-                |= lowercaseIdentifier
-            , Parser.succeed LetExpression
-                |. Parser.keyword letToken
-                |. Parser.spaces
-                |= Parser.oneOf
-                    [ Parser.succeed (\value transform -> transform value)
+                        |. Parser.symbol arrowToken
+                        |. Parser.spaces
+                        |= Parser.lazy (\() -> expression)
+                , Parser.succeed identity
+                    |. Parser.symbol openCurlyBracketToken
+                    |. Parser.spaces
+                    |= Parser.oneOf
+                        [ Parser.inContext CRecordExpression <|
+                            Parser.map RecordExpression
+                                (PExtra.sequence
+                                    { subParser = Parser.lazy (\() -> recordKeyValue)
+                                    , separator = Parser.symbol commaToken
+                                    , spaces = Parser.spaces
+                                    }
+                                )
+                        , Parser.inContext CUpdateExpression <|
+                            Parser.succeed
+                                (\var ( firstProperty, restProperties ) ->
+                                    UpdateExpression var
+                                        firstProperty
+                                        restProperties
+                                )
+                                |= lowercaseIdentifier
+                                |. Parser.spaces
+                                |. Parser.symbol pipeToken
+                                |. Parser.spaces
+                                |= PExtra.sequenceAtLeastOne
+                                    { subParser = Parser.lazy (\() -> recordKeyValue)
+                                    , separator = spacesAtLeastOne
+                                    , spaces = Parser.succeed ()
+                                    }
+                                |. Parser.spaces
+                        ]
+                    |. Parser.symbol closeCurlyBracketToken
+                , Parser.inContext CAccessorExpression <|
+                    Parser.succeed AccessorExpression
+                        |. Parser.symbol dotToken
                         |= lowercaseIdentifier
+                , Parser.inContext CLetExpression <|
+                    Parser.succeed LetExpression
+                        |. Parser.keyword letToken
                         |. Parser.spaces
                         |= Parser.oneOf
-                            [ Parser.succeed (\exp -> \name -> ValueDeclaration name exp)
-                                |. Parser.symbol equalsToken
+                            [ Parser.succeed (\value transform -> transform value)
+                                |= lowercaseIdentifier
                                 |. Parser.spaces
-                                |= Parser.lazy (\() -> expression)
-                            ]
+                                |= Parser.oneOf
+                                    [ Parser.succeed (\exp -> \name -> ValueDeclaration name exp)
+                                        |. Parser.symbol equalsToken
+                                        |. Parser.spaces
+                                        |= Parser.lazy (\() -> expression)
+                                    ]
 
-                    -- TODO
-                    ]
-            , charLiteral
-                |> Parser.map CharExpression
-            , stringLiteral
-                |> Parser.map StringExpression
-            , variableLiteral |> Parser.map VarExpression
-            , listLiteral (Parser.lazy (\() -> expression))
-                |> Parser.map ListExpression
-            , unitTupleTripleLiteral (Parser.lazy (\() -> expression))
-                UnitExpression
-                TupleExpression
-                TripleExpression
-            , numberLiteral IntExpression FloatExpression
-            ]
-        |= Parser.oneOf
-            [ Parser.succeed (\prop -> \exp -> AccessExpression exp prop)
-                |. Parser.symbol dotToken
-                |= lowercaseIdentifier
-            , Parser.succeed identity
-            ]
+                            -- TODO
+                            ]
+                , charLiteral |> Parser.map CharExpression
+                , Parser.inContext CString <|
+                    (stringLiteral |> Parser.map StringExpression)
+                , Parser.inContext CVariable <|
+                    (variableLiteral |> Parser.map VarExpression)
+                , Parser.inContext CList <|
+                    (listLiteral (Parser.lazy (\() -> expression)) |> Parser.map ListExpression)
+                , unitTupleTripleParensLiteral (Parser.lazy (\() -> expression))
+                    UnitExpression
+                    TupleExpression
+                    TripleExpression
+                , Parser.inContext CNumber <|
+                    numberLiteral IntExpression FloatExpression
+                ]
+            |= Parser.oneOf
+                [ Parser.inContext CAccessExpression <|
+                    Parser.succeed (\prop -> \exp -> AccessExpression exp prop)
+                        |. Parser.symbol dotToken
+                        |= lowercaseIdentifier
+                , Parser.succeed identity
+
+                -- TODO: Call expression
+                ]
 
 
 recordKeyValue : Parser ( LowercaseIdentifier, Expression )
 recordKeyValue =
-    Parser.succeed Tuple.pair
-        |= lowercaseIdentifier
-        |. Parser.spaces
-        |. Parser.symbol equalsToken
-        |. Parser.spaces
-        |= expression
-        |. Parser.spaces
+    Parser.inContext CRecordKeyValue <|
+        Parser.succeed Tuple.pair
+            |= lowercaseIdentifier
+            |. Parser.spaces
+            |. Parser.symbol equalsToken
+            |. Parser.spaces
+            |= expression
+            |. Parser.spaces
 
 
 
@@ -536,10 +590,11 @@ variableLiteral =
 -}
 charLiteral : Parser String
 charLiteral =
-    Parser.succeed identity
-        |. Parser.symbol singleQuoteToken
-        |= (Parser.chompIf (\_ -> True) ExpectingCharacter |> Parser.getChompedString)
-        |. Parser.symbol singleQuoteToken
+    Parser.inContext CChar <|
+        Parser.succeed identity
+            |. Parser.symbol singleQuoteToken
+            |= (Parser.chompIf (\_ -> True) ExpectingCharacter |> Parser.getChompedString)
+            |. Parser.symbol singleQuoteToken
 
 
 {-| TODO: Handle escapes
@@ -547,85 +602,95 @@ charLiteral =
 -}
 stringLiteral : Parser String
 stringLiteral =
-    Parser.succeed ()
-        |. Parser.symbol doubleQuoteToken
-        |. Parser.chompUntil doubleQuoteToken
-        |> Parser.getChompedString
-        |> Parser.map (String.dropLeft 1)
+    Parser.inContext CString
+        (Parser.succeed ()
+            |. Parser.symbol doubleQuoteToken
+            |. Parser.chompUntil doubleQuoteToken
+            |> Parser.getChompedString
+            |> Parser.map (String.dropLeft 1)
+        )
 
 
 numberLiteral : (Int -> decodesTo) -> (Float -> decodesTo) -> Parser decodesTo
 numberLiteral fromInt fromFloat =
-    Parser.number
-        { int = Ok fromInt
-        , hex = Ok fromInt
-        , octal = Err InvalidNumber
-        , binary = Err InvalidNumber
-        , float = Ok fromFloat
-        , invalid = InvalidNumber
-        , expecting = ExpectingNumber
-        }
+    Parser.inContext CNumber <|
+        Parser.number
+            { int = Ok fromInt
+            , hex = Ok fromInt
+            , octal = Err InvalidNumber
+            , binary = Err InvalidNumber
+            , float = Ok fromFloat
+            , invalid = InvalidNumber
+            , expecting = ExpectingNumber
+            }
 
 
-unitTupleTripleLiteral :
+{-| TODO: Do these contexts make sense?
+-}
+unitTupleTripleParensLiteral :
     Parser decodesTo
     -> decodesTo
     -> (decodesTo -> decodesTo -> decodesTo)
     -> (decodesTo -> decodesTo -> decodesTo -> decodesTo)
     -> Parser decodesTo
-unitTupleTripleLiteral subParser fromUnit fromTuple fromTriple =
-    Parser.succeed identity
-        |. Parser.symbol openParenthesisToken
-        |= Parser.oneOf
-            [ Parser.succeed fromUnit
-                |. Parser.symbol closeParenthesisToken
-            , Parser.succeed (\sub fromSub -> fromSub sub)
-                |. Parser.spaces
-                |= subParser
-                |. Parser.spaces
-                |= Parser.oneOf
-                    [ Parser.succeed identity
-                        |. Parser.symbol closeParenthesisToken
-                    , Parser.succeed
-                        (\second maybeThird ->
-                            \first ->
-                                case maybeThird of
-                                    Nothing ->
-                                        fromTuple first second
-
-                                    Just third ->
-                                        fromTriple first second third
-                        )
-                        |. Parser.symbol commaToken
+unitTupleTripleParensLiteral subParser fromUnit fromTuple fromTriple =
+    Parser.inContext CUnitTupleTripleParens <|
+        Parser.succeed identity
+            |. Parser.symbol openParenthesisToken
+            |= Parser.oneOf
+                [ Parser.succeed fromUnit
+                    |. Parser.symbol closeParenthesisToken
+                , Parser.inContext CTupleTripleParens <|
+                    Parser.succeed (\sub fromSub -> fromSub sub)
                         |. Parser.spaces
                         |= subParser
                         |. Parser.spaces
                         |= Parser.oneOf
-                            [ Parser.succeed Just
-                                |. Parser.symbol commaToken
-                                |. Parser.spaces
-                                |= subParser
-                                |. Parser.spaces
-                            , Parser.succeed Nothing
+                            [ Parser.succeed identity
+                                |. Parser.symbol closeParenthesisToken
+                            , Parser.inContext CTupleTriple <|
+                                Parser.succeed
+                                    (\second maybeThird ->
+                                        \first ->
+                                            case maybeThird of
+                                                Nothing ->
+                                                    fromTuple first second
+
+                                                Just third ->
+                                                    fromTriple first second third
+                                    )
+                                    |. Parser.symbol commaToken
+                                    |. Parser.spaces
+                                    |= subParser
+                                    |. Parser.spaces
+                                    |= Parser.oneOf
+                                        [ Parser.inContext CTriple <|
+                                            Parser.succeed Just
+                                                |. Parser.symbol commaToken
+                                                |. Parser.spaces
+                                                |= subParser
+                                                |. Parser.spaces
+                                        , Parser.succeed Nothing
+                                        ]
+                                    |. Parser.symbol closeParenthesisToken
                             ]
-                        |. Parser.symbol closeParenthesisToken
-                    ]
-            ]
+                ]
 
 
 listLiteral : Parser decodesTo -> Parser (List decodesTo)
 listLiteral subParser =
-    Parser.succeed identity
-        |. Parser.symbol openSquareBracketToken
-        |. Parser.spaces
-        |= Parser.succeed identity
-        |= PExtra.sequence
-            { subParser = subParser
-            , separator = Parser.symbol commaToken
-            , spaces = Parser.spaces
-            }
-        |. Parser.spaces
-        |. Parser.symbol closeSquareBracketToken
+    Parser.inContext CList <|
+        Parser.succeed identity
+            |. Parser.symbol openSquareBracketToken
+            |. Parser.spaces
+            |= Parser.succeed identity
+            |= PExtra.sequence
+                { subParser = subParser
+                , separator = Parser.symbol commaToken
+                , spaces = Parser.spaces
+                }
+            |. Parser.spaces
+            |. Parser.symbol closeSquareBracketToken
 
 
 
@@ -643,7 +708,7 @@ lowercaseIdentifier =
 uppercaseIdentifier : Parser String
 uppercaseIdentifier =
     Parser.succeed ()
-        |. Parser.chompIf Char.isUpper ExpectingLowerCharacter
+        |. Parser.chompIf Char.isUpper ExpectingUpperCharacter
         |. Parser.chompWhile identifierHelp
         |> Parser.getChompedString
 

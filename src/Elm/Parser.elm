@@ -56,7 +56,7 @@ type Context
     | CExposedItems
     | CExposedConstructors
     | CExposingList
-    | CModuleImport
+    | CModuleImport ModuleName
     | CModuleDeclaration
 
 
@@ -176,38 +176,43 @@ moduleDeclaration =
 
 moduleImport : Parser ModuleImport
 moduleImport =
-    Parser.inContext CModuleImport <|
-        Parser.succeed identity
-            |. Parser.spaces
-            |. Parser.keyword importToken
-            |. Parser.spaces
-            |= Parser.oneOf
-                [ Parser.succeed ModuleImport
-                    |= moduleName
-                    |. Parser.spaces
-                    |= Parser.oneOf
-                        [ Parser.succeed identity
-                            |. Parser.token asToken
-                            |. Parser.spaces
-                            |= Parser.oneOf
-                                [ uppercaseIdentifier |> Parser.map Alias
-                                , Parser.succeed AliasPartial
-                                ]
-                        , Parser.succeed AliasNone
-                        ]
-                    |. Parser.spaces
-                    |= Parser.oneOf
-                        [ Parser.succeed identity
-                            |. Parser.keyword exposingToken
-                            |. Parser.spaces
-                            |= Parser.oneOf
-                                [ exposingList |> Parser.map Just
-                                , Parser.succeed Nothing
-                                ]
-                        , Parser.succeed Nothing
-                        ]
-                , Parser.succeed ModuleImportIncomplete
-                ]
+    moduleImportName
+        |> Parser.andThen
+            (\importedModuleName ->
+                Parser.inContext (CModuleImport importedModuleName) <|
+                    Parser.succeed (ModuleImport importedModuleName)
+                        |= Parser.oneOf
+                            [ Parser.succeed identity
+                                |. Parser.token asToken
+                                |. Parser.spaces
+                                |= Parser.oneOf
+                                    [ uppercaseIdentifier |> Parser.map Alias
+                                    , Parser.succeed AliasPartial
+                                    ]
+                            , Parser.succeed AliasNone
+                            ]
+                        |. Parser.spaces
+                        |= Parser.oneOf
+                            [ Parser.succeed identity
+                                |. Parser.keyword exposingToken
+                                |. Parser.spaces
+                                |= Parser.oneOf
+                                    [ exposingList |> Parser.map Just
+                                    , Parser.succeed Nothing
+                                    ]
+                            , Parser.succeed Nothing
+                            ]
+            )
+
+
+moduleImportName : Parser ModuleName
+moduleImportName =
+    Parser.succeed identity
+        |. Parser.spaces
+        |. Parser.keyword importToken
+        |. Parser.spaces
+        |= moduleName
+        |. Parser.spaces
 
 
 

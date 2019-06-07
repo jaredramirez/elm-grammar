@@ -803,16 +803,7 @@ moduleDeclarationTests =
 moduleImportTests : Test.Test
 moduleImportTests =
     Test.describe "Module Import Tests"
-        [ Test.test "Module import " <|
-            \_ ->
-                let
-                    source =
-                        "import "
-                in
-                Expect.equal
-                    (Ok Elm.ModuleImportIncomplete)
-                    (Parser.run Elm.moduleImport source)
-        , Test.test "Module import name declaration" <|
+        [ Test.test "Module import name declaration" <|
             \_ ->
                 let
                     source =
@@ -821,10 +812,7 @@ moduleImportTests =
                 Expect.equal
                     (Ok <|
                         Elm.ModuleImport
-                            (Elm.ModuleName
-                                "Hello"
-                                []
-                            )
+                            (Elm.ModuleName "Hello" [])
                             Elm.AliasNone
                             Nothing
                     )

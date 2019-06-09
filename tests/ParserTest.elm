@@ -3,7 +3,7 @@ module ParserTest exposing (test)
 import Elm.AST as Elm
 import Elm.Parser as Elm
 import Expect
-import Parser.Advanced as Parser
+import Parser.Advanced as Parser exposing ((|.), (|=))
 import Test
 
 
@@ -1600,6 +1600,39 @@ expressionTests =
                 Expect.equal
                     (Ok (Elm.AccessorExpression "world"))
                     (Parser.run Elm.expression source)
+        , Test.test "let" <|
+            \_ ->
+                let
+                    source =
+                        """
+                        let
+                            hello =
+                                 "world"
+
+                            my =
+                                 1234
+                        in
+                        hello
+                        """
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.LetExpression
+                            [ Elm.ValueDeclaration "hello"
+                                (Elm.StringExpression "world")
+                            , Elm.ValueDeclaration "my"
+                                (Elm.IntExpression 1234)
+                            ]
+                            (Elm.VarExpression "hello")
+                        )
+                    )
+                    (Parser.run
+                        (Parser.succeed identity
+                            |. Parser.spaces
+                            |= Elm.expression
+                        )
+                        source
+                    )
         ]
 
 

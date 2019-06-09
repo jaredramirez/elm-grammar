@@ -94,10 +94,11 @@ type Expression
     | NegateExpression Expression
     | LambdaExpression Pattern (List Pattern) Expression
     | CallExpression Expression (List Expression)
-    | LetExpression Declaration
+    | LetExpression (List Declaration) Expression
     | AccessorExpression LowercaseIdentifier
     | AccessExpression Expression LowercaseIdentifier
     | UpdateExpression LowercaseIdentifier ( LowercaseIdentifier, Expression ) (List ( LowercaseIdentifier, Expression ))
+    | CaseExpression (List ( Pattern, Expression ))
     | TupleExpression Expression Expression
     | TripleExpression Expression Expression Expression
     | UnitExpression

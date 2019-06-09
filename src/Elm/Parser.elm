@@ -32,6 +32,8 @@ type Context
     | CUpdateExpression
     | CAccessorExpression
     | CLetExpression
+    | CLetExpressionDeclarations
+    | CLetExpressionBody
     | CAccessExpression
     | CPattern
     | CRecordPattern
@@ -66,6 +68,7 @@ type Problem
     | ExpectingExposing
     | ExpectingImport
     | ExpectingSpaces
+    | ExpectingNewLine
     | ExpectingAs
     | ExpectingType
     | ExpectingAlias
@@ -101,6 +104,8 @@ type Problem
     | InvalidNumber
     | ExpectingLowerCharacter
     | ExpectingUpperCharacter
+    | ExpectingNothing
+    | ExpectingAny
 
 
 
@@ -120,7 +125,7 @@ elm =
             ]
         |= Parser.oneOf
             [ Parser.succeed identity
-                |= PExtra.sequence
+                |= PExtra.sequenceWithTrailing
                     { subParser = moduleImport
                     , separator = spacesAtLeastOne
                     , spaces = Parser.succeed ()
@@ -229,7 +234,7 @@ exposingList =
                 |= Parser.oneOf
                     [ Parser.succeed ExposingListDoubleDot
                         |. Parser.token consToken
-                    , PExtra.sequence
+                    , PExtra.sequenceWithTrailing
                         { subParser = exposedItem
                         , separator = Parser.symbol commaToken
                         , spaces = Parser.spaces
@@ -268,7 +273,7 @@ exposedConstructors =
                 |= Parser.oneOf
                     [ Parser.token dotDotToken
                         |> Parser.map (\() -> ExposedConstructorsDotDot)
-                    , PExtra.sequence
+                    , PExtra.sequenceWithTrailing
                         { subParser = uppercaseIdentifier
                         , separator = Parser.symbol commaToken
                         , spaces = Parser.spaces
@@ -415,7 +420,7 @@ pattern =
                     Parser.succeed RecordPattern
                         |. Parser.symbol openCurlyBracketToken
                         |. Parser.spaces
-                        |= PExtra.sequence
+                        |= PExtra.sequenceWithTrailing
                             { subParser = lowercaseIdentifier
                             , separator = Parser.symbol commaToken
                             , spaces = Parser.spaces
@@ -424,7 +429,7 @@ pattern =
                 , Parser.inContext CCtorPattern <|
                     Parser.succeed CtorPattern
                         |= uppercaseIdentifier
-                        |= PExtra.sequence
+                        |= PExtra.sequenceWithTrailing
                             { subParser = Parser.lazy (\() -> pattern)
                             , separator = spacesAtLeastOne
                             , spaces = Parser.succeed ()
@@ -493,7 +498,7 @@ expression =
                     |= Parser.oneOf
                         [ Parser.inContext CRecordExpression <|
                             Parser.map RecordExpression
-                                (PExtra.sequence
+                                (PExtra.sequenceWithTrailing
                                     { subParser = Parser.lazy (\() -> recordKeyValue)
                                     , separator = Parser.symbol commaToken
                                     , spaces = Parser.spaces
@@ -522,23 +527,7 @@ expression =
                     Parser.succeed AccessorExpression
                         |. Parser.symbol dotToken
                         |= lowercaseIdentifier
-                , Parser.inContext CLetExpression <|
-                    Parser.succeed LetExpression
-                        |. Parser.keyword letToken
-                        |. Parser.spaces
-                        |= Parser.oneOf
-                            [ Parser.succeed (\value transform -> transform value)
-                                |= lowercaseIdentifier
-                                |. Parser.spaces
-                                |= Parser.oneOf
-                                    [ Parser.succeed (\exp -> \name -> ValueDeclaration name exp)
-                                        |. Parser.symbol equalsToken
-                                        |. Parser.spaces
-                                        |= Parser.lazy (\() -> expression)
-                                    ]
-
-                            -- TODO
-                            ]
+                , letDeclarations
                 , charLiteral |> Parser.map CharExpression
                 , Parser.inContext CString <|
                     (stringLiteral |> Parser.map StringExpression)
@@ -562,6 +551,54 @@ expression =
 
                 -- TODO: Call expression
                 ]
+
+
+letDeclarations : Parser Expression
+letDeclarations =
+    Parser.inContext CLetExpression
+        (Parser.getIndent
+            |> Parser.andThen
+                (\indent ->
+                    Parser.inContext CLetExpressionDeclarations <|
+                        Parser.succeed identity
+                            |. Parser.keyword letToken
+                            |. spacesAtLeastOne
+                            |= (Parser.loop [] letDeclarationsHelp
+                                    |> Parser.withIndent (indent + 1)
+                               )
+                )
+            |> Parser.andThen
+                (\declarations ->
+                    Parser.inContext CLetExpressionBody <|
+                        Parser.succeed (LetExpression declarations)
+                            -- No spacesAtLeastOne here because that space is parsed
+                            -- after the last let declaration
+                            |. Parser.keyword inToken
+                            |. spacesAtLeastOne
+                            |= Parser.lazy (\_ -> expression)
+                )
+        )
+
+
+letDeclarationsHelp : List Declaration -> Parser (Parser.Step (List Declaration) (List Declaration))
+letDeclarationsHelp items =
+    Parser.oneOf
+        [ Parser.succeed (\nextItem -> Parser.Loop (nextItem :: items))
+            |= letDeclaration
+            |. spacesAtLeastOne
+        , Parser.succeed (Parser.Done (List.reverse items))
+        ]
+
+
+letDeclaration : Parser Declaration
+letDeclaration =
+    Parser.inContext CValueDeclaration <|
+        Parser.succeed ValueDeclaration
+            |= variableLiteral
+            |. Parser.spaces
+            |. Parser.symbol equalsToken
+            |. Parser.spaces
+            |= Parser.lazy (\() -> expression)
 
 
 recordKeyValue : Parser ( LowercaseIdentifier, Expression )
@@ -591,7 +628,7 @@ variableLiteral =
 
 
 {-| TODO: Handle escapes
-<https://www.reddit.com/r/haskell/comments/6hhqvk/parsing_strings_with_escaped_characters/>?
+<https://github.com/elm/parser/blob/master/examples/DoubleQuoteString.elm>
 -}
 charLiteral : Parser String
 charLiteral =
@@ -602,18 +639,32 @@ charLiteral =
             |. Parser.symbol singleQuoteToken
 
 
-{-| TODO: Handle escapes
-<https://www.reddit.com/r/haskell/comments/6hhqvk/parsing_strings_with_escaped_characters/>?
--}
 stringLiteral : Parser String
 stringLiteral =
-    Parser.inContext CString
-        (Parser.succeed ()
-            |. Parser.symbol doubleQuoteToken
-            |. Parser.chompUntil doubleQuoteToken
+    Parser.succeed identity
+        |. Parser.token doubleQuoteToken
+        |= Parser.loop [] stringLiteralHelp
+
+
+stringLiteralHelp : List String -> Parser (Parser.Step (List String) String)
+stringLiteralHelp revChunks =
+    Parser.oneOf
+        [ Parser.succeed ()
+            |. Parser.token backSlashToken
+            |. Parser.chompIf (\_ -> True) ExpectingAny
             |> Parser.getChompedString
-            |> Parser.map (String.dropLeft 1)
-        )
+            |> Parser.map (\chunk -> Parser.Loop (chunk :: revChunks))
+        , Parser.token doubleQuoteToken
+            |> Parser.map (\_ -> Parser.Done (String.join "" (List.reverse revChunks)))
+        , Parser.chompWhile isUninteresting
+            |> Parser.getChompedString
+            |> Parser.map (\chunk -> Parser.Loop (chunk :: revChunks))
+        ]
+
+
+isUninteresting : Char -> Bool
+isUninteresting char =
+    char /= '\\' && char /= '"'
 
 
 numberLiteral : (Int -> decodesTo) -> (Float -> decodesTo) -> Parser decodesTo
@@ -689,7 +740,7 @@ listLiteral subParser =
             |. Parser.symbol openSquareBracketToken
             |. Parser.spaces
             |= Parser.succeed identity
-            |= PExtra.sequence
+            |= PExtra.sequenceWithTrailing
                 { subParser = subParser
                 , separator = Parser.symbol commaToken
                 , spaces = Parser.spaces
@@ -960,6 +1011,11 @@ openSquareBracketToken =
 closeSquareBracketToken : Parser.Token Problem
 closeSquareBracketToken =
     Parser.Token "]" ExpectingCloseSquareBracket
+
+
+emptyToken : Parser.Token Problem
+emptyToken =
+    Parser.Token "" ExpectingNothing
 
 
 

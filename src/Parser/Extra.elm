@@ -4,8 +4,8 @@ module Parser.Extra exposing
     , chompUntilEndOfLine
     , sequence
     , sequenceAtLeastOne
-    , sequenceAtLeastOneHelp
-    , sequenceHelp
+    , sequenceWithTrailing
+    , sequenceWithTrailingHelp
     , spacesAtLeastOne
     , withDefault
     )
@@ -48,17 +48,20 @@ type alias SequenceConfig item c p =
     }
 
 
-sequence : SequenceConfig item c p -> Parser c p (List item)
-sequence config =
-    Parser.loop ( [], NotTrailing ) (sequenceHelp config)
+{-| TODO: Refactor
+Allows trailing in the middle, ex: 1, , 2, 3
+-}
+sequenceWithTrailing : SequenceConfig item c p -> Parser c p (List item)
+sequenceWithTrailing config =
+    Parser.loop ( [], NotTrailing ) (sequenceWithTrailingHelp config)
         |> Parser.map Tuple.first
 
 
-sequenceHelp :
+sequenceWithTrailingHelp :
     SequenceConfig item c p
     -> ( List item, Trailing )
     -> Parser c p (Parser.Step ( List item, Trailing ) ( List item, Trailing ))
-sequenceHelp { subParser, separator, spaces } ( items, trailing ) =
+sequenceWithTrailingHelp { subParser, separator, spaces } ( items, trailing ) =
     Parser.oneOf
         [ Parser.succeed (\nextItem nextTrailing -> Parser.Loop ( nextItem :: items, nextTrailing ))
             |= subParser
@@ -82,7 +85,7 @@ sequenceHelp { subParser, separator, spaces } ( items, trailing ) =
         ]
 
 
-{-| Differs from sequence in it's implementation. Does not support TrailingInTheMiddle
+{-| Does not support trailing in the middle
 -}
 sequenceAtLeastOne : SequenceConfig item c p -> Parser c p ( item, List item )
 sequenceAtLeastOne config =
@@ -104,4 +107,30 @@ sequenceAtLeastOneHelp { subParser, separator, spaces } items =
                 , Parser.succeed (Parser.Done ( List.reverse items, Trailing ))
                 ]
         , Parser.succeed (Parser.Done ( List.reverse items, NotTrailing ))
+        ]
+
+
+{-| Does not support trailing in the middle, probably the best implementation to support
+regular trailing
+-}
+sequence : SequenceConfig item c p -> Parser c p (List item)
+sequence config =
+    Parser.loop [] (sequenceHelp config)
+
+
+sequenceHelp :
+    SequenceConfig item c p
+    -> List item
+    -> Parser c p (Parser.Step (List item) (List item))
+sequenceHelp { subParser, separator, spaces } items =
+    Parser.oneOf
+        [ Parser.succeed (\nextItem -> Parser.Loop (nextItem :: items))
+            |= subParser
+            |. Parser.oneOf
+                [ Parser.succeed ()
+                    |. separator
+                    |. spaces
+                , Parser.succeed ()
+                ]
+        , Parser.succeed (Parser.Done (List.reverse items))
         ]

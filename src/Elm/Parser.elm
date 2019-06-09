@@ -368,6 +368,7 @@ valueOrFunctionDeclaration =
     Parser.inContext CValueFunctionDeclaration <|
         Parser.succeed (\name toDeclaration exp -> toDeclaration name exp)
             |= lowercaseIdentifier
+            -- TODO: spacesAtLeastOne?
             |. Parser.spaces
             |= Parser.oneOf
                 [ Parser.inContext CFunctionDeclaration <|
@@ -571,7 +572,7 @@ letDeclarations =
                 (\declarations ->
                     Parser.inContext CLetExpressionBody <|
                         Parser.succeed (LetExpression declarations)
-                            -- No spacesAtLeastOne here because that space is parsed
+                            -- No spacesAtLeastOne here because the space is parsed
                             -- after the last let declaration
                             |. Parser.keyword inToken
                             |. spacesAtLeastOne
@@ -592,13 +593,42 @@ letDeclarationsHelp items =
 
 letDeclaration : Parser Declaration
 letDeclaration =
-    Parser.inContext CValueDeclaration <|
-        Parser.succeed ValueDeclaration
+    Parser.oneOf
+        [ Parser.succeed (\name transformer -> transformer name)
             |= variableLiteral
-            |. Parser.spaces
-            |. Parser.symbol equalsToken
-            |. Parser.spaces
-            |= Parser.lazy (\() -> expression)
+            |= Parser.oneOf
+                [ Parser.inContext CFunctionDeclaration <|
+                    Parser.succeed
+                        (\( firstPattern, restPatterns ) declarations ->
+                            \name ->
+                                FunctionDeclaration name firstPattern restPatterns declarations
+                        )
+                        -- TODO: Remove backtrackable?
+                        |. Parser.backtrackable spacesAtLeastOne
+                        |= PExtra.sequenceAtLeastOne
+                            { subParser = pattern
+                            , separator = spacesAtLeastOne
+                            , spaces = Parser.succeed ()
+                            }
+                        |. Parser.spaces
+                        |. Parser.symbol equalsToken
+                        |. Parser.spaces
+                        |= Parser.lazy (\() -> expression)
+                , Parser.inContext CValueDeclaration <|
+                    Parser.succeed (\declarations -> \name -> ValueDeclaration name declarations)
+                        |. Parser.spaces
+                        |. Parser.symbol equalsToken
+                        |. Parser.spaces
+                        |= Parser.lazy (\() -> expression)
+                ]
+        , Parser.inContext CValuePatternMatchDeclaration <|
+            Parser.succeed ValuePatternMatchDeclaration
+                |= pattern
+                |. Parser.spaces
+                |. Parser.symbol equalsToken
+                |. Parser.spaces
+                |= Parser.lazy (\() -> expression)
+        ]
 
 
 recordKeyValue : Parser ( LowercaseIdentifier, Expression )

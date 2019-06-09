@@ -1609,8 +1609,11 @@ expressionTests =
                             hello =
                                  "world"
 
-                            my =
+                            my i =
                                  1234
+
+                            (a, b) =
+                                 ("hello", "world")
                         in
                         hello
                         """
@@ -1620,8 +1623,16 @@ expressionTests =
                         (Elm.LetExpression
                             [ Elm.ValueDeclaration "hello"
                                 (Elm.StringExpression "world")
-                            , Elm.ValueDeclaration "my"
+                            , Elm.FunctionDeclaration "my"
+                                (Elm.LowerPattern "i")
+                                []
                                 (Elm.IntExpression 1234)
+                            , Elm.ValuePatternMatchDeclaration
+                                (Elm.TuplePattern (Elm.LowerPattern "a") (Elm.LowerPattern "b"))
+                                (Elm.TupleExpression
+                                    (Elm.StringExpression "hello")
+                                    (Elm.StringExpression "world")
+                                )
                             ]
                             (Elm.VarExpression "hello")
                         )

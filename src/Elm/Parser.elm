@@ -112,6 +112,9 @@ type Problem
     | ExpectingOf
     | ExpectingIndent
     | ExpectingArguement
+    | ExpectingIf
+    | ExpectingThen
+    | ExpectingElse
     | InternalExpressionProblem
 
 
@@ -549,8 +552,9 @@ expressionWithState state =
                             Parser.succeed AccessorExpression
                                 |. Parser.symbol dotToken
                                 |= lowercaseIdentifier
-                        , letDeclarations state
-                        , caseStatements state
+                        , letExpression state
+                        , caseExpression state
+                        , ifExpression state
                         , charLiteral |> Parser.map CharExpression
                         , Parser.inContext CString <|
                             (stringLiteral |> Parser.map StringExpression)
@@ -570,7 +574,7 @@ expressionWithState state =
                             Parser.succeed (\prop -> \exp -> AccessExpression exp prop)
                                 |. Parser.symbol dotToken
                                 |= lowercaseIdentifier
-                        , Parser.succeed (\secondExp -> \exp -> BinOpCallExpression exp secondExp)
+                        , Parser.succeed (\op secondExp -> \firstExp -> BinOpCallExpression firstExp op secondExp)
                             -- TODO: Remove backtrackable?
                             |. Parser.backtrackable Parser.spaces
                             |= operator
@@ -593,11 +597,10 @@ expressionWithState state =
                                             , end = emptyToken
                                             , item =
                                                 Parser.lazy
-                                                    (\() ->
-                                                        expressionWithState
-                                                            { state | isInFunctionCall = True }
-                                                    )
-                                            , separator = spacesAtLeastOne
+                                                    (\() -> expressionWithState { state | isInFunctionCall = True })
+
+                                            -- TODO: Remove backtrackable?
+                                            , separator = Parser.backtrackable spacesAtLeastOne
                                             , spaces = Parser.succeed ()
                                             , trailing = Parser.Forbidden
                                             }
@@ -617,11 +620,31 @@ expressionWithState state =
 
 
 
+-- If Expression --
+
+
+ifExpression : ExpressionState -> Parser Expression
+ifExpression state =
+    Parser.succeed IfExpression
+        |. Parser.keyword ifToken
+        |. spacesAtLeastOne
+        |= Parser.lazy (\() -> expressionWithState state)
+        |. spacesAtLeastOne
+        |. Parser.keyword thenToken
+        |. spacesAtLeastOne
+        |= Parser.lazy (\() -> expressionWithState state)
+        |. spacesAtLeastOne
+        |. Parser.keyword elseToken
+        |. spacesAtLeastOne
+        |= Parser.lazy (\() -> expressionWithState state)
+
+
+
 -- Case Expression --
 
 
-caseStatements : ExpressionState -> Parser Expression
-caseStatements state =
+caseExpression : ExpressionState -> Parser Expression
+caseExpression state =
     Parser.succeed CaseExpression
         |. Parser.keyword caseToken
         |. spacesAtLeastOne
@@ -629,19 +652,17 @@ caseStatements state =
         |. spacesAtLeastOne
         |. Parser.keyword ofToken
         |. spacesAtLeastOne
-        |= Parser.loop [] (caseStatementsHelp state)
+        |= Parser.loop [] (caseExpressionHelp state)
 
 
-caseStatementsHelp :
+caseExpressionHelp :
     ExpressionState
     -> List ( Pattern, Expression )
     -> Parser (Parser.Step (List ( Pattern, Expression )) (List ( Pattern, Expression )))
-caseStatementsHelp state items =
+caseExpressionHelp state items =
     Parser.oneOf
         [ Parser.succeed
-            (\casePattern caseExpression ->
-                Parser.Loop (( casePattern, caseExpression ) :: items)
-            )
+            (\casePat caseExp -> Parser.Loop (( casePat, caseExp ) :: items))
             |= pattern
             |. Parser.spaces
             |. Parser.token arrowToken
@@ -656,14 +677,14 @@ caseStatementsHelp state items =
 -- Let Expression --
 
 
-letDeclarations : ExpressionState -> Parser Expression
-letDeclarations state =
+letExpression : ExpressionState -> Parser Expression
+letExpression state =
     Parser.inContext CLetExpression
         (Parser.succeed LetExpression
             |. Parser.keyword letToken
             |. spacesAtLeastOne
             |= (Parser.inContext CLetExpressionDeclarations <|
-                    Parser.loop [] (letDeclarationsHelp state)
+                    Parser.loop [] (letExpressionHelp state)
                )
             |= (Parser.inContext CLetExpressionBody <|
                     Parser.succeed identity
@@ -676,11 +697,11 @@ letDeclarations state =
         )
 
 
-letDeclarationsHelp :
+letExpressionHelp :
     ExpressionState
     -> List Declaration
     -> Parser (Parser.Step (List Declaration) (List Declaration))
-letDeclarationsHelp state items =
+letExpressionHelp state items =
     Parser.oneOf
         [ Parser.succeed (\nextItem -> Parser.Loop (nextItem :: items))
             |= letDeclaration state
@@ -966,6 +987,21 @@ ofString =
     "of"
 
 
+ifString : String
+ifString =
+    "if"
+
+
+thenString : String
+thenString =
+    "then"
+
+
+elseString : String
+elseString =
+    "else"
+
+
 keywords : List String
 keywords =
     [ letString
@@ -979,6 +1015,9 @@ keywords =
     , importString
     , caseString
     , ofString
+    , ifString
+    , thenString
+    , elseString
     ]
 
 
@@ -1044,6 +1083,21 @@ caseToken =
 ofToken : Parser.Token Problem
 ofToken =
     Parser.Token ofString ExpectingOf
+
+
+ifToken : Parser.Token Problem
+ifToken =
+    Parser.Token ifString ExpectingIf
+
+
+thenToken : Parser.Token Problem
+thenToken =
+    Parser.Token thenString ExpectingThen
+
+
+elseToken : Parser.Token Problem
+elseToken =
+    Parser.Token elseString ExpectingElse
 
 
 consToken : Parser.Token Problem

@@ -1704,6 +1704,32 @@ expressionTests =
                         )
                         source
                     )
+        , Test.test "call multiline" <|
+            \_ ->
+                let
+                    source =
+                        """
+                        hello world
+                            ya
+                            bitch
+                        """
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.CallExpression (Elm.VarExpression "hello")
+                            (Elm.VarExpression "world")
+                            [ Elm.VarExpression "ya"
+                            , Elm.VarExpression "bitch"
+                            ]
+                        )
+                    )
+                    (Parser.run
+                        (Parser.succeed identity
+                            |. Parser.spaces
+                            |= Elm.expression
+                        )
+                        source
+                    )
         , Test.test "binop call" <|
             \_ ->
                 let
@@ -1713,9 +1739,81 @@ expressionTests =
                 Expect.equal
                     (Ok
                         (Elm.BinOpCallExpression
-                            (Elm.VarExpression "world")
-                            Elm.PlusPlus
                             (Elm.VarExpression "hello")
+                            Elm.PlusPlus
+                            (Elm.VarExpression "world")
+                        )
+                    )
+                    (Parser.run
+                        (Parser.succeed identity
+                            |. Parser.spaces
+                            |= Elm.expression
+                        )
+                        source
+                    )
+        , Test.test "if" <|
+            \_ ->
+                let
+                    source =
+                        """
+                        if 1 > 2 then
+                            "hello"
+                        else
+                            "world"
+
+                        """
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.IfExpression
+                            (Elm.BinOpCallExpression
+                                (Elm.IntExpression 1)
+                                Elm.GreaterThan
+                                (Elm.IntExpression 2)
+                            )
+                            (Elm.StringExpression "hello")
+                            (Elm.StringExpression "world")
+                        )
+                    )
+                    (Parser.run
+                        (Parser.succeed identity
+                            |. Parser.spaces
+                            |= Elm.expression
+                        )
+                        source
+                    )
+        , Test.test "else if" <|
+            \_ ->
+                let
+                    source =
+                        """
+                        if 1 > 2 then
+                            "hello"
+                        else if 2 > 3 then
+                            "world"
+                        else
+                            "yas"
+
+                        """
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.IfExpression
+                            (Elm.BinOpCallExpression
+                                (Elm.IntExpression 1)
+                                Elm.GreaterThan
+                                (Elm.IntExpression 2)
+                            )
+                            (Elm.StringExpression "hello")
+                            (Elm.IfExpression
+                                (Elm.BinOpCallExpression
+                                    (Elm.IntExpression 2)
+                                    Elm.GreaterThan
+                                    (Elm.IntExpression 3)
+                                )
+                                (Elm.StringExpression "world")
+                                (Elm.StringExpression "yas")
+                            )
                         )
                     )
                     (Parser.run

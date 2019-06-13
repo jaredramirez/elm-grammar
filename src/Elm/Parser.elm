@@ -115,7 +115,9 @@ type Problem
     | ExpectingIf
     | ExpectingThen
     | ExpectingElse
-    | InternalExpressionProblem
+    | InternalCallExpressionProblem
+    | InternalQualifiedVarExpressionProblem
+    | ExpectingAtLeastOneModuleName
 
 
 
@@ -552,6 +554,7 @@ expressionWithState state =
                             Parser.succeed AccessorExpression
                                 |. Parser.symbol dotToken
                                 |= lowercaseIdentifier
+                        , qualifiedVariableExpression
                         , letExpression state
                         , caseExpression state
                         , ifExpression state
@@ -582,7 +585,7 @@ expressionWithState state =
                             |= Parser.lazy (\() -> expressionWithState state)
                         , Parser.inContext CCallExpression <|
                             if state.isInFunctionCall then
-                                Parser.problem InternalExpressionProblem
+                                Parser.problem InternalCallExpressionProblem
 
                             else
                                 Parser.succeed
@@ -617,6 +620,48 @@ expressionWithState state =
                         , Parser.succeed identity
                         ]
             )
+
+
+
+-- Qualified variable Expression --
+
+
+qualifiedVariableExpression : Parser Expression
+qualifiedVariableExpression =
+    Parser.loop [] qualifiedVariableExpressionHelp
+        |> Parser.andThen
+            (\( moduleNames, var ) ->
+                case moduleNames of
+                    [] ->
+                        Parser.problem ExpectingAtLeastOneModuleName
+
+                    head :: rest ->
+                        Parser.succeed (QualVarExpression (ModuleName head rest) var)
+            )
+
+
+qualifiedVariableExpressionHelp :
+    List UppercaseIdentifier
+    -> Parser (Parser.Step (List UppercaseIdentifier) ( List UppercaseIdentifier, LowercaseIdentifier ))
+qualifiedVariableExpressionHelp uppercaseIdentifiers =
+    Parser.oneOf
+        [ Parser.succeed
+            (\modName -> Parser.Loop (modName :: uppercaseIdentifiers))
+            |= uppercaseIdentifier
+            |. Parser.token dotToken
+        , if List.isEmpty uppercaseIdentifiers then
+            Parser.problem InternalQualifiedVarExpressionProblem
+
+          else
+            Parser.map
+                (\lowercaseVar ->
+                    Parser.Done
+                        ( List.reverse uppercaseIdentifiers
+                        , lowercaseVar
+                        )
+                )
+                lowercaseIdentifier
+        ]
 
 
 

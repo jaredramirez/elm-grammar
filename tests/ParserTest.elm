@@ -1823,6 +1823,21 @@ expressionTests =
                         )
                         source
                     )
+        , Test.test "qualified var" <|
+            \_ ->
+                let
+                    source =
+                        """Hello.World.hi"""
+                in
+                Expect.equal
+                    (Ok (Elm.QualVarExpression (Elm.ModuleName "Hello" [ "World" ]) "hi"))
+                    (Parser.run
+                        (Parser.succeed identity
+                            |. Parser.spaces
+                            |= Elm.expression
+                        )
+                        source
+                    )
         ]
 
 

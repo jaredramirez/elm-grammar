@@ -1411,6 +1411,21 @@ patternTests =
                         )
                     )
                     (Parser.run Elm.pattern source)
+        , Test.test "Qualified Ctor" <|
+            \_ ->
+                let
+                    source =
+                        "Hello.World world"
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.QualCtorPattern
+                            (Elm.ModuleName "Hello" [])
+                            "World"
+                            [ Elm.LowerPattern "world" ]
+                        )
+                    )
+                    (Parser.run Elm.pattern source)
         ]
 
 

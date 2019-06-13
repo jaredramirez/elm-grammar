@@ -25,7 +25,6 @@ type alias Parser a =
 
 type Context
     = CRecordKeyValue
-    | CExpression
     | CNegateExpression
     | CLambdaExpression
     | CRecordExpression
@@ -42,6 +41,7 @@ type Context
     | CCtorPattern
     | CAliasPattern
     | CConsPattern
+    | CQualCtorPattern
     | CChar
     | CString
     | CVariable
@@ -440,13 +440,7 @@ pattern =
                             }
                         |. Parser.symbol closeCurlyBracketToken
                 , Parser.inContext CCtorPattern <|
-                    Parser.succeed CtorPattern
-                        |= uppercaseIdentifier
-                        |= PExtra.sequenceWithTrailing
-                            { subParser = Parser.lazy (\() -> pattern)
-                            , separator = spacesAtLeastOne
-                            , spaces = Parser.succeed ()
-                            }
+                    ctorPattern
                 , charLiteral |> Parser.map CharPattern
                 , stringLiteral |> Parser.map StringPattern
                 , variableLiteral |> Parser.map LowerPattern
@@ -460,7 +454,7 @@ pattern =
                 ]
             |= Parser.oneOf
                 [ Parser.succeed identity
-                    |. (spacesAtLeastOne |> Parser.backtrackable)
+                    |. Parser.backtrackable spacesAtLeastOne
                     |= Parser.oneOf
                         [ Parser.inContext CAliasPattern <|
                             Parser.succeed (\alias_ -> \pat -> AliasPattern pat alias_)
@@ -475,6 +469,58 @@ pattern =
                         ]
                 , Parser.succeed identity
                 ]
+
+
+
+-- Qualified Ctor Pattern --
+
+
+ctorPattern : Parser Pattern
+ctorPattern =
+    Parser.inContext CCtorPattern
+        (Parser.succeed (\modName transformer -> transformer modName)
+            |= uppercaseIdentifier
+            |= Parser.oneOf
+                [ Parser.succeed
+                    (\( moduleNames, ctor ) subPatterns ->
+                        \firstModuleName ->
+                            QualCtorPattern (ModuleName firstModuleName moduleNames) ctor subPatterns
+                    )
+                    |. Parser.token dotToken
+                    |= Parser.loop [] qualifiedCtorPatternHelp
+                    |. spacesAtLeastOne
+                    |= PExtra.sequence
+                        { start = emptyToken
+                        , end = emptyToken
+                        , item = Parser.lazy (\() -> pattern)
+
+                        -- TODO: Remove backtrackable?
+                        , separator = Parser.backtrackable spacesAtLeastOne
+                        , spaces = Parser.succeed ()
+                        , trailing = Parser.Forbidden
+                        }
+                , Parser.succeed (\subPatterns -> \modName -> CtorPattern modName subPatterns)
+                    |= PExtra.sequenceWithTrailing
+                        { subParser = Parser.lazy (\() -> pattern)
+                        , separator = spacesAtLeastOne
+                        , spaces = Parser.succeed ()
+                        }
+                ]
+        )
+
+
+qualifiedCtorPatternHelp :
+    List UppercaseIdentifier
+    -> Parser (Parser.Step (List UppercaseIdentifier) ( List UppercaseIdentifier, UppercaseIdentifier ))
+qualifiedCtorPatternHelp uppercaseIdentifiers =
+    Parser.succeed (\upperVar transformer -> transformer upperVar)
+        |= uppercaseIdentifier
+        |= Parser.oneOf
+            [ Parser.token dotToken
+                |> Parser.map (\() -> \upperVar -> Parser.Loop (upperVar :: uppercaseIdentifiers))
+            , Parser.succeed
+                (\upperVar -> Parser.Done ( List.reverse uppercaseIdentifiers, upperVar ))
+            ]
 
 
 

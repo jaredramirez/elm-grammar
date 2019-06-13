@@ -2,6 +2,7 @@ module Parser.Extra exposing
     ( SequenceConfig
     , chompChar
     , chompUntilEndOfLine
+    , join
     , sequence
     , sequenceAtLeastOne
     , sequenceWithTrailing
@@ -230,3 +231,8 @@ keeper parseFunc parseArg =
 ignorer : Parser c x keep -> Parser c x ignore -> Parser c x keep
 ignorer keepParser ignoreParser =
     keepParser |. ignoreParser
+
+
+join : Parser c x (Parser c x v) -> Parser c x v
+join double =
+    Parser.andThen identity double

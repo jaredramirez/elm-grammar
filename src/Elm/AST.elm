@@ -108,7 +108,6 @@ type Expression
     | FloatExpression Float
     | CharExpression String
     | StringExpression String
-      -- TODO
     | QualVarExpression ModuleName LowercaseIdentifier
 
 

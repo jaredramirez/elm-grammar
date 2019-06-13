@@ -1644,6 +1644,87 @@ expressionTests =
                         )
                         source
                     )
+        , Test.test "case" <|
+            \_ ->
+                let
+                    source =
+                        """
+                        case var of
+                            [hello, world] ->
+                                 "world"
+
+                            var ->
+                                'c'
+
+                            _ ->
+                                 1234
+                        """
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.CaseExpression
+                            (Elm.LowerPattern "var")
+                            [ ( Elm.ListPattern
+                                    [ Elm.LowerPattern "hello"
+                                    , Elm.LowerPattern "world"
+                                    ]
+                              , Elm.StringExpression "world"
+                              )
+                            , ( Elm.LowerPattern "var", Elm.CharExpression "c" )
+                            , ( Elm.AnythingPattern, Elm.IntExpression 1234 )
+                            ]
+                        )
+                    )
+                    (Parser.run
+                        (Parser.succeed identity
+                            |. Parser.spaces
+                            |= Elm.expression
+                        )
+                        source
+                    )
+        , Test.test "call" <|
+            \_ ->
+                let
+                    source =
+                        """hello world ya bitch"""
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.CallExpression (Elm.VarExpression "hello")
+                            (Elm.VarExpression "world")
+                            [ Elm.VarExpression "ya"
+                            , Elm.VarExpression "bitch"
+                            ]
+                        )
+                    )
+                    (Parser.run
+                        (Parser.succeed identity
+                            |. Parser.spaces
+                            |= Elm.expression
+                        )
+                        source
+                    )
+        , Test.test "binop call" <|
+            \_ ->
+                let
+                    source =
+                        """hello++ world"""
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.BinOpCallExpression
+                            (Elm.VarExpression "world")
+                            Elm.PlusPlus
+                            (Elm.VarExpression "hello")
+                        )
+                    )
+                    (Parser.run
+                        (Parser.succeed identity
+                            |. Parser.spaces
+                            |= Elm.expression
+                        )
+                        source
+                    )
         ]
 
 

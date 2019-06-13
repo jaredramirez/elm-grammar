@@ -93,12 +93,14 @@ type Expression
     | RecordExpression (List ( LowercaseIdentifier, Expression ))
     | NegateExpression Expression
     | LambdaExpression Pattern (List Pattern) Expression
-    | CallExpression Expression (List Expression)
+    | CallExpression Expression Expression (List Expression)
+    | BinOpCallExpression Expression Operator Expression
     | LetExpression (List Declaration) Expression
     | AccessorExpression LowercaseIdentifier
     | AccessExpression Expression LowercaseIdentifier
     | UpdateExpression LowercaseIdentifier ( LowercaseIdentifier, Expression ) (List ( LowercaseIdentifier, Expression ))
-    | CaseExpression (List ( Pattern, Expression ))
+    | CaseExpression Pattern (List ( Pattern, Expression ))
+    | IfExpression Expression Expression Expression
     | TupleExpression Expression Expression
     | TripleExpression Expression Expression Expression
     | UnitExpression
@@ -107,7 +109,6 @@ type Expression
     | CharExpression String
     | StringExpression String
       -- TODO
-    | BinOpExpression
     | QualVarExpression ModuleName LowercaseIdentifier
 
 

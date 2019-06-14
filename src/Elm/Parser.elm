@@ -62,6 +62,7 @@ type Context
     | CExposingList
     | CModuleImport ModuleName
     | CModuleDeclaration
+    | CDeclaration
 
 
 type Problem
@@ -367,55 +368,48 @@ moduleName =
 
 declaration : Parser Declaration
 declaration =
-    Parser.oneOf
-        [ valueOrFunctionDeclaration
-        , valuePatternMatchDeclaration
-
-        -- TODO: Rest of declaration types
-        ]
+    declarationWithExpressionParser expression
 
 
-valueOrFunctionDeclaration : Parser Declaration
-valueOrFunctionDeclaration =
-    Parser.inContext CValueFunctionDeclaration <|
-        Parser.succeed (\name toDeclaration exp -> toDeclaration name exp)
-            |= lowercaseIdentifier
-            -- TODO: spacesAtLeastOne?
-            |. Parser.spaces
-            |= Parser.oneOf
-                [ Parser.inContext CFunctionDeclaration <|
-                    Parser.succeed
-                        (\( firstPattern, restPatterns ) ->
-                            \name exp ->
-                                FunctionDeclaration name
-                                    firstPattern
-                                    restPatterns
-                                    exp
-                        )
-                        |= PExtra.sequenceAtLeastOne
-                            { subParser = pattern
-                            , separator = spacesAtLeastOne
-                            , spaces = Parser.succeed ()
-                            }
-                , Parser.inContext CValueDeclaration <|
-                    Parser.succeed (\name exp -> ValueDeclaration name exp)
-                ]
-            |. Parser.symbol equalsToken
-            |. Parser.spaces
-            -- TODO: Expression Parser
-            |= Parser.succeed ExpressionStub
-
-
-valuePatternMatchDeclaration : Parser Declaration
-valuePatternMatchDeclaration =
-    Parser.inContext CValuePatternMatchDeclaration <|
-        Parser.succeed ValuePatternMatchDeclaration
-            |= pattern
-            |. Parser.spaces
-            |. Parser.symbol equalsToken
-            |. Parser.spaces
-            -- TODO: Expression Parser
-            |= Parser.succeed ExpressionStub
+declarationWithExpressionParser : Parser Expression -> Parser Declaration
+declarationWithExpressionParser parseExpression =
+    Parser.inContext CDeclaration <|
+        Parser.oneOf
+            [ Parser.succeed (\name transformer -> transformer name)
+                |= variableLiteral
+                |= Parser.oneOf
+                    [ Parser.inContext CFunctionDeclaration <|
+                        Parser.succeed
+                            (\( firstPattern, restPatterns ) declarations ->
+                                \name ->
+                                    FunctionDeclaration name firstPattern restPatterns declarations
+                            )
+                            -- TODO: Remove backtrackable?
+                            |. Parser.backtrackable spacesAtLeastOne
+                            |= PExtra.sequenceAtLeastOne
+                                { subParser = pattern
+                                , separator = spacesAtLeastOne
+                                , spaces = Parser.succeed ()
+                                }
+                            |. Parser.spaces
+                            |. Parser.symbol equalsToken
+                            |. Parser.spaces
+                            |= parseExpression
+                    , Parser.inContext CValueDeclaration <|
+                        Parser.succeed (\declarations -> \name -> ValueDeclaration name declarations)
+                            |. Parser.spaces
+                            |. Parser.symbol equalsToken
+                            |. Parser.spaces
+                            |= parseExpression
+                    ]
+            , Parser.inContext CValuePatternMatchDeclaration <|
+                Parser.succeed ValuePatternMatchDeclaration
+                    |= pattern
+                    |. Parser.spaces
+                    |. Parser.symbol equalsToken
+                    |. Parser.spaces
+                    |= parseExpression
+            ]
 
 
 
@@ -795,51 +789,11 @@ letExpressionHelp :
 letExpressionHelp state items =
     Parser.oneOf
         [ Parser.succeed (\nextItem -> Parser.Loop (nextItem :: items))
-            |= letDeclaration state
+            |= declarationWithExpressionParser
+                (Parser.lazy (\() -> expressionWithState state))
             |. spacesAtLeastOne
         , Parser.succeed (Parser.Done (List.reverse items))
         ]
-
-
-letDeclaration : ExpressionState -> Parser Declaration
-letDeclaration state =
-    Parser.inContext CLetExpressionDeclaration <|
-        Parser.oneOf
-            [ Parser.succeed (\name transformer -> transformer name)
-                |= variableLiteral
-                |= Parser.oneOf
-                    [ Parser.inContext CFunctionDeclaration <|
-                        Parser.succeed
-                            (\( firstPattern, restPatterns ) declarations ->
-                                \name ->
-                                    FunctionDeclaration name firstPattern restPatterns declarations
-                            )
-                            -- TODO: Remove backtrackable?
-                            |. Parser.backtrackable spacesAtLeastOne
-                            |= PExtra.sequenceAtLeastOne
-                                { subParser = pattern
-                                , separator = spacesAtLeastOne
-                                , spaces = Parser.succeed ()
-                                }
-                            |. Parser.spaces
-                            |. Parser.symbol equalsToken
-                            |. Parser.spaces
-                            |= Parser.lazy (\() -> expression)
-                    , Parser.inContext CValueDeclaration <|
-                        Parser.succeed (\declarations -> \name -> ValueDeclaration name declarations)
-                            |. Parser.spaces
-                            |. Parser.symbol equalsToken
-                            |. Parser.spaces
-                            |= Parser.lazy (\() -> expressionWithState state)
-                    ]
-            , Parser.inContext CValuePatternMatchDeclaration <|
-                Parser.succeed ValuePatternMatchDeclaration
-                    |= pattern
-                    |. Parser.spaces
-                    |. Parser.symbol equalsToken
-                    |. Parser.spaces
-                    |= Parser.lazy (\() -> expressionWithState state)
-            ]
 
 
 

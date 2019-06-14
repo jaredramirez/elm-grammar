@@ -74,12 +74,6 @@ type ModuleName
     = ModuleName UppercaseIdentifier (List UppercaseIdentifier)
 
 
-type TopLevelDeclaration
-    = Declaration Declaration
-    | TypeAliasDeclaration UppercaseIdentifier (List LowercaseIdentifier) -- TODO: Type
-    | CustomTypeDeclaration UppercaseIdentifier (List LowercaseIdentifier) -- TODO: Custom Type
-
-
 type Declaration
     = ValueDeclaration LowercaseIdentifier Expression
     | FunctionDeclaration LowercaseIdentifier Pattern (List Pattern) Expression
@@ -87,8 +81,7 @@ type Declaration
 
 
 type Expression
-    = ExpressionStub
-    | VarExpression LowercaseIdentifier
+    = VarExpression LowercaseIdentifier
     | ListExpression (List Expression)
     | RecordExpression (List ( LowercaseIdentifier, Expression ))
     | NegateExpression Expression
@@ -126,7 +119,6 @@ type Pattern
     | CtorPattern UppercaseIdentifier (List Pattern)
     | ConsPattern Pattern Pattern
     | AliasPattern Pattern LowercaseIdentifier
-      -- TODO
     | QualCtorPattern ModuleName UppercaseIdentifier (List Pattern)
 
 

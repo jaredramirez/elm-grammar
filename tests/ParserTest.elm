@@ -1863,16 +1863,16 @@ declarationTests =
             \_ ->
                 let
                     source =
-                        "value = "
+                        """value = "hello" """
                 in
                 Expect.equal
-                    (Ok (Elm.ValueDeclaration "value" Elm.ExpressionStub))
+                    (Ok (Elm.ValueDeclaration "value" (Elm.StringExpression "hello")))
                     (Parser.run Elm.declaration source)
         , Test.test "Function" <|
             \_ ->
                 let
                     source =
-                        "value arg = "
+                        "value arg = 'c'"
                 in
                 Expect.equal
                     (Ok
@@ -1880,7 +1880,7 @@ declarationTests =
                             "value"
                             (Elm.LowerPattern "arg")
                             []
-                            Elm.ExpressionStub
+                            (Elm.CharExpression "c")
                         )
                     )
                     (Parser.run Elm.declaration source)
@@ -1888,7 +1888,7 @@ declarationTests =
             \_ ->
                 let
                     source =
-                        "value arg _ = "
+                        "value arg _ = 'c' "
                 in
                 Expect.equal
                     (Ok
@@ -1896,7 +1896,7 @@ declarationTests =
                             "value"
                             (Elm.LowerPattern "arg")
                             [ Elm.AnythingPattern ]
-                            Elm.ExpressionStub
+                            (Elm.CharExpression "c")
                         )
                     )
                     (Parser.run Elm.declaration source)
@@ -1904,7 +1904,7 @@ declarationTests =
             \_ ->
                 let
                     source =
-                        "value arg (World w) = "
+                        "value arg (World w) = 'c'"
                 in
                 Expect.equal
                     (Ok
@@ -1912,7 +1912,7 @@ declarationTests =
                             (Elm.LowerPattern "arg")
                             [ Elm.CtorPattern "World" [ Elm.LowerPattern "w" ]
                             ]
-                            Elm.ExpressionStub
+                            (Elm.CharExpression "c")
                         )
                     )
                     (Parser.run Elm.declaration source)
@@ -1920,30 +1920,59 @@ declarationTests =
             \_ ->
                 let
                     source =
-                        "value arg ((World w) as abc) = "
+                        """
+                                value arg ((World w) as abc) =
+                                    let
+                                         hello =
+                                            1
+                                    in
+                                    hello
+                                """
                 in
                 Expect.equal
                     (Ok
                         (Elm.FunctionDeclaration "value"
                             (Elm.LowerPattern "arg")
                             [ Elm.AliasPattern (Elm.CtorPattern "World" [ Elm.LowerPattern "w" ]) "abc" ]
-                            Elm.ExpressionStub
+                            (Elm.LetExpression
+                                [ Elm.ValueDeclaration "hello" (Elm.IntExpression 1) ]
+                                (Elm.VarExpression "hello")
+                            )
                         )
                     )
-                    (Parser.run Elm.declaration source)
+                    (Parser.run
+                        (Parser.succeed identity
+                            |. Parser.spaces
+                            |= Elm.declaration
+                        )
+                        source
+                    )
         , Test.test "Function with many pattern matched with alias top level" <|
-            -- TODO: Should this even pass?
             \_ ->
                 let
                     source =
-                        "value arg (World w) as abc = "
+                        "value arg (World w) as abc = 'c'"
                 in
                 Expect.equal
                     (Ok
                         (Elm.FunctionDeclaration "value"
                             (Elm.LowerPattern "arg")
                             [ Elm.AliasPattern (Elm.CtorPattern "World" [ Elm.LowerPattern "w" ]) "abc" ]
-                            Elm.ExpressionStub
+                            (Elm.CharExpression "c")
+                        )
+                    )
+                    (Parser.run Elm.declaration source)
+        , Test.test "destructure" <|
+            \_ ->
+                let
+                    source =
+                        "(hello, world ) = ( 'h' , 'w')"
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.ValuePatternMatchDeclaration
+                            (Elm.TuplePattern (Elm.LowerPattern "hello") (Elm.LowerPattern "world"))
+                            (Elm.TupleExpression (Elm.CharExpression "h") (Elm.CharExpression "w"))
                         )
                     )
                     (Parser.run Elm.declaration source)

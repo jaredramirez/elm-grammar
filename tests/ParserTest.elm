@@ -1362,6 +1362,23 @@ patternTests =
                         )
                     )
                     (Parser.run Elm.pattern source)
+        , Test.test "Ctor with sub ctor without parenthesis" <|
+            \_ ->
+                let
+                    source =
+                        "Hello World world whatUp"
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.CtorPattern "Hello"
+                            [ Elm.CtorPattern "World"
+                                []
+                            , Elm.LowerPattern "world"
+                            , Elm.LowerPattern "whatUp"
+                            ]
+                        )
+                    )
+                    (Parser.run Elm.pattern source)
         , Test.test "Ctor with sub ctor" <|
             \_ ->
                 let

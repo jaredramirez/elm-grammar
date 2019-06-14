@@ -561,7 +561,6 @@ declarationWithExpressionParser parseExpression =
 
 
 -- Pattern --
--- TODO: Update qualified ctor to be similar to types
 
 
 pattern : Parser Pattern
@@ -569,29 +568,8 @@ pattern =
     Parser.inContext CPattern <|
         Parser.succeed (\pat transform -> transform pat)
             |= Parser.oneOf
-                [ Parser.succeed AnythingPattern
-                    |. Parser.symbol underscoreToken
-                , Parser.inContext CRecordPattern <|
-                    Parser.succeed RecordPattern
-                        |. Parser.symbol openCurlyBracketToken
-                        |. Parser.spaces
-                        |= PExtra.sequenceWithTrailing
-                            { subParser = lowercaseIdentifier
-                            , separator = Parser.symbol commaToken
-                            , spaces = Parser.spaces
-                            }
-                        |. Parser.symbol closeCurlyBracketToken
-                , Parser.inContext CCtorPattern <|
-                    ctorPattern
-                , charLiteral |> Parser.map CharPattern
-                , stringLiteral |> Parser.map StringPattern
-                , variableLiteral |> Parser.map LowerPattern
-                , numberLiteral IntPattern FloatPattern
-                , listLiteral (Parser.lazy (\() -> pattern))
-                    |> Parser.map ListPattern
-                , unitTupleParensLiteral (Parser.lazy (\() -> pattern))
-                    UnitPattern
-                    TuplePattern
+                [ ctorPattern
+                , patternTerm
                 ]
             |= Parser.oneOf
                 [ Parser.succeed identity
@@ -612,8 +590,55 @@ pattern =
                 ]
 
 
+patternTerm : Parser Pattern
+patternTerm =
+    Parser.oneOf
+        [ Parser.succeed AnythingPattern
+            |. Parser.symbol underscoreToken
+        , Parser.inContext CRecordPattern <|
+            Parser.succeed RecordPattern
+                |. Parser.symbol openCurlyBracketToken
+                |. Parser.spaces
+                |= PExtra.sequenceWithTrailing
+                    { subParser = lowercaseIdentifier
+                    , separator = Parser.symbol commaToken
+                    , spaces = Parser.spaces
+                    }
+                |. Parser.symbol closeCurlyBracketToken
+        , Parser.inContext CCtorPattern <|
+            ctorPatternWithoutArgs
+        , charLiteral |> Parser.map CharPattern
+        , stringLiteral |> Parser.map StringPattern
+        , variableLiteral |> Parser.map LowerPattern
+        , numberLiteral IntPattern FloatPattern
+        , listLiteral (Parser.lazy (\() -> pattern))
+            |> Parser.map ListPattern
+        , unitTupleParensLiteral (Parser.lazy (\() -> pattern))
+            UnitPattern
+            TuplePattern
+        ]
+
+
 
 -- Ctor Pattern and Qualified Ctor Pattern --
+
+
+ctorPatternWithoutArgs : Parser Pattern
+ctorPatternWithoutArgs =
+    Parser.inContext CCtorPattern
+        (Parser.succeed (\modName transformer -> transformer modName)
+            |= uppercaseIdentifier
+            |= Parser.oneOf
+                [ Parser.succeed
+                    (\( moduleNames, ctor ) ->
+                        \firstModuleName ->
+                            QualCtorPattern (ModuleName firstModuleName moduleNames) ctor []
+                    )
+                    |. Parser.token dotToken
+                    |= Parser.loop [] qualifiedCtorPatternHelp
+                , Parser.succeed (\modName -> CtorPattern modName [])
+                ]
+        )
 
 
 ctorPattern : Parser Pattern
@@ -633,7 +658,7 @@ ctorPattern =
                     |= PExtra.sequence
                         { start = emptyToken
                         , end = emptyToken
-                        , item = Parser.lazy (\() -> pattern)
+                        , item = Parser.lazy (\() -> patternTerm)
 
                         -- TODO: Remove backtrackable?
                         , separator = Parser.backtrackable spacesAtLeastOne
@@ -642,7 +667,7 @@ ctorPattern =
                         }
                 , Parser.succeed (\subPatterns -> \modName -> CtorPattern modName subPatterns)
                     |= PExtra.sequenceWithTrailing
-                        { subParser = Parser.lazy (\() -> pattern)
+                        { subParser = Parser.lazy (\() -> patternTerm)
                         , separator = spacesAtLeastOne
                         , spaces = Parser.succeed ()
                         }

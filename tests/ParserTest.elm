@@ -22,6 +22,7 @@ test =
         , expressionTests
         , declarationTests
         , typeTests
+        , typeDeclarationTests
         ]
 
 
@@ -1590,10 +1591,10 @@ expressionTests =
             \_ ->
                 let
                     source =
-                        "!'c'"
+                        "-2"
                 in
                 Expect.equal
-                    (Ok (Elm.NegateExpression (Elm.CharExpression "c")))
+                    (Ok (Elm.NegateExpression (Elm.IntExpression 2)))
                     (Parser.run Elm.expression source)
         , Test.test "lambda" <|
             \_ ->
@@ -1624,6 +1625,20 @@ expressionTests =
                         )
                     )
                     (Parser.run Elm.expression source)
+        , Test.test "access qualified var" <|
+            \_ ->
+                let
+                    source =
+                        "Hello.world.a"
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.AccessExpression
+                            (Elm.QualVarExpression (Elm.ModuleName "Hello" []) "world")
+                            "a"
+                        )
+                    )
+                    (Parser.run Elm.expression source)
         , Test.test "accessor" <|
             \_ ->
                 let
@@ -1632,6 +1647,15 @@ expressionTests =
                 in
                 Expect.equal
                     (Ok (Elm.AccessorExpression "world"))
+                    (Parser.run Elm.expression source)
+        , Test.test "decimal" <|
+            \_ ->
+                let
+                    source =
+                        ".12"
+                in
+                Expect.equal
+                    (Ok (Elm.FloatExpression 0.12))
                     (Parser.run Elm.expression source)
         , Test.test "let" <|
             \_ ->
@@ -1660,7 +1684,7 @@ expressionTests =
                                 (Elm.LowerPattern "i")
                                 []
                                 (Elm.IntExpression 1234)
-                            , Elm.ValuePatternMatchDeclaration
+                            , Elm.PatternMatchDeclaration
                                 (Elm.TuplePattern (Elm.LowerPattern "a") (Elm.LowerPattern "b") [])
                                 (Elm.TupleExpression
                                     (Elm.StringExpression "hello")
@@ -1886,7 +1910,7 @@ declarationTests =
                 in
                 Expect.equal
                     (Ok (Elm.ValueDeclaration "value" (Elm.StringExpression "hello")))
-                    (Parser.run Elm.declaration source)
+                    (Parser.run Elm.valueDeclaration source)
         , Test.test "Function" <|
             \_ ->
                 let
@@ -1902,7 +1926,7 @@ declarationTests =
                             (Elm.CharExpression "c")
                         )
                     )
-                    (Parser.run Elm.declaration source)
+                    (Parser.run Elm.valueDeclaration source)
         , Test.test "Function with many args" <|
             \_ ->
                 let
@@ -1918,7 +1942,7 @@ declarationTests =
                             (Elm.CharExpression "c")
                         )
                     )
-                    (Parser.run Elm.declaration source)
+                    (Parser.run Elm.valueDeclaration source)
         , Test.test "Function with many pattern matched" <|
             \_ ->
                 let
@@ -1934,7 +1958,7 @@ declarationTests =
                             (Elm.CharExpression "c")
                         )
                     )
-                    (Parser.run Elm.declaration source)
+                    (Parser.run Elm.valueDeclaration source)
         , Test.test "Function with many pattern matched with alias" <|
             \_ ->
                 let
@@ -1962,25 +1986,10 @@ declarationTests =
                     (Parser.run
                         (Parser.succeed identity
                             |. Parser.spaces
-                            |= Elm.declaration
+                            |= Elm.valueDeclaration
                         )
                         source
                     )
-        , Test.test "Function with many pattern matched with alias top level" <|
-            \_ ->
-                let
-                    source =
-                        "value arg (World w) as abc = 'c'"
-                in
-                Expect.equal
-                    (Ok
-                        (Elm.FunctionDeclaration "value"
-                            (Elm.LowerPattern "arg")
-                            [ Elm.AliasPattern (Elm.CtorPattern "World" [ Elm.LowerPattern "w" ]) "abc" ]
-                            (Elm.CharExpression "c")
-                        )
-                    )
-                    (Parser.run Elm.declaration source)
         , Test.test "destructure" <|
             \_ ->
                 let
@@ -1989,12 +1998,12 @@ declarationTests =
                 in
                 Expect.equal
                     (Ok
-                        (Elm.ValuePatternMatchDeclaration
+                        (Elm.PatternMatchDeclaration
                             (Elm.TuplePattern (Elm.LowerPattern "hello") (Elm.LowerPattern "world") [])
                             (Elm.TupleExpression (Elm.CharExpression "h") (Elm.CharExpression "w") [])
                         )
                     )
-                    (Parser.run Elm.declaration source)
+                    (Parser.run Elm.valueDeclaration source)
         ]
 
 
@@ -2017,7 +2026,7 @@ typeTests =
                         "Hello"
                 in
                 Expect.equal
-                    (Ok <| Elm.CustomType "Hello" [])
+                    (Ok <| Elm.Type "Hello" [])
                     (Parser.run Elm.type_ source)
         , Test.test "custom with args" <|
             \_ ->
@@ -2027,9 +2036,9 @@ typeTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.CustomType "Hello"
+                        Elm.Type "Hello"
                             [ Elm.VariableType "my"
-                            , Elm.CustomType "World" []
+                            , Elm.Type "World" []
                             ]
                     )
                     (Parser.run Elm.type_ source)
@@ -2041,7 +2050,7 @@ typeTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.QualCustomType (Elm.ModuleName "My" [ "Hello" ])
+                        Elm.QualType (Elm.ModuleName "My" [ "Hello" ])
                             "World"
                             [ Elm.VariableType "my" ]
                     )
@@ -2054,9 +2063,9 @@ typeTests =
                 in
                 Expect.equal
                     (Ok <|
-                        Elm.QualCustomType (Elm.ModuleName "My" [ "Hello" ])
+                        Elm.QualType (Elm.ModuleName "My" [ "Hello" ])
                             "World"
-                            [ Elm.CustomType "My" []
+                            [ Elm.Type "My" []
                             , Elm.VariableType "goodness"
                             ]
                     )
@@ -2070,7 +2079,7 @@ typeTests =
                 Expect.equal
                     (Ok <|
                         Elm.RecordType Nothing
-                            [ ( "hello", Elm.CustomType "World" [] )
+                            [ ( "hello", Elm.Type "World" [] )
                             ]
                     )
                     (Parser.run Elm.type_ source)
@@ -2083,9 +2092,9 @@ typeTests =
                 Expect.equal
                     (Ok <|
                         Elm.RecordType Nothing
-                            [ ( "hello", Elm.CustomType "World" [] )
+                            [ ( "hello", Elm.Type "World" [] )
                             , ( "my"
-                              , Elm.QualCustomType (Elm.ModuleName "RemoteData" [])
+                              , Elm.QualType (Elm.ModuleName "RemoteData" [])
                                     "RemoteData"
                                     [ Elm.VariableType "success"
                                     , Elm.VariableType "failure"
@@ -2112,7 +2121,7 @@ typeTests =
                 Expect.equal
                     (Ok
                         (Elm.TupleType
-                            (Elm.QualCustomType (Elm.ModuleName "RemoteData" [])
+                            (Elm.QualType (Elm.ModuleName "RemoteData" [])
                                 "RemoteData"
                                 [ Elm.VariableType "success"
                                 , Elm.VariableType "failure"
@@ -2132,7 +2141,7 @@ typeTests =
                 Expect.equal
                     (Ok
                         (Elm.TupleType
-                            (Elm.QualCustomType (Elm.ModuleName "RemoteData" [])
+                            (Elm.QualType (Elm.ModuleName "RemoteData" [])
                                 "RemoteData"
                                 [ Elm.VariableType "success"
                                 , Elm.VariableType "failure"
@@ -2152,8 +2161,8 @@ typeTests =
                 Expect.equal
                     (Ok
                         (Elm.LambdaType
-                            (Elm.CustomType "List" [ Elm.VariableType "success" ])
-                            (Elm.QualCustomType (Elm.ModuleName "RemoteData" [])
+                            (Elm.Type "List" [ Elm.VariableType "success" ])
+                            (Elm.QualType (Elm.ModuleName "RemoteData" [])
                                 "RemoteData"
                                 [ Elm.VariableType "success"
                                 , Elm.VariableType "failure"
@@ -2171,8 +2180,8 @@ typeTests =
                 Expect.equal
                     (Ok
                         (Elm.LambdaType
-                            (Elm.CustomType "List" [ Elm.VariableType "success" ])
-                            (Elm.QualCustomType (Elm.ModuleName "RemoteData" [])
+                            (Elm.Type "List" [ Elm.VariableType "success" ])
+                            (Elm.QualType (Elm.ModuleName "RemoteData" [])
                                 "RemoteData"
                                 [ Elm.VariableType "success"
                                 , Elm.VariableType "failure"
@@ -2190,12 +2199,12 @@ typeTests =
                 Expect.equal
                     (Ok
                         (Elm.LambdaType
-                            (Elm.CustomType "String" [])
+                            (Elm.Type "String" [])
                             (Elm.LambdaType
-                                (Elm.CustomType "Int" [])
+                                (Elm.Type "Int" [])
                                 (Elm.LambdaType
-                                    (Elm.CustomType "List" [ Elm.VariableType "success" ])
-                                    (Elm.QualCustomType (Elm.ModuleName "RemoteData" [])
+                                    (Elm.Type "List" [ Elm.VariableType "success" ])
+                                    (Elm.QualType (Elm.ModuleName "RemoteData" [])
                                         "RemoteData"
                                         [ Elm.VariableType "success"
                                         , Elm.VariableType "failure"
@@ -2206,4 +2215,79 @@ typeTests =
                         )
                     )
                     (Parser.run Elm.type_ source)
+        ]
+
+
+typeDeclarationTests : Test.Test
+typeDeclarationTests =
+    Test.describe "Type Declaration Tests"
+        [ Test.test "alias" <|
+            \_ ->
+                let
+                    source =
+                        "type alias Hello = String"
+                in
+                Expect.equal
+                    (Ok <| Elm.TypeAlias "Hello" [] (Elm.Type "String" []))
+                    (Parser.run Elm.typeDeclaration source)
+        , Test.test "alias extensible record" <|
+            \_ ->
+                let
+                    source =
+                        "type alias Hello a = {a|hello : String}"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.TypeAlias "Hello"
+                            [ "a" ]
+                            (Elm.RecordType (Just "a") [ ( "hello", Elm.Type "String" [] ) ])
+                    )
+                    (Parser.run Elm.typeDeclaration source)
+        , Test.test "custom type" <|
+            \_ ->
+                let
+                    source =
+                        """
+                        type Hello a
+                             = Hello a
+                             | Goodbye
+                        """
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.CustomType "Hello" [ "a" ] <|
+                            [ ( "Hello", [ Elm.VariableType "a" ] )
+                            , ( "Goodbye", [] )
+                            ]
+                    )
+                    (Parser.run
+                        (Parser.succeed identity
+                            |. Parser.spaces
+                            |= Elm.typeDeclaration
+                        )
+                        source
+                    )
+        , Test.test "custom type wonky spacing" <|
+            \_ ->
+                let
+                    source =
+                        """
+                        type Hello a=Hello a|Goodbye|ILoveYou
+                        """
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.CustomType "Hello" [ "a" ] <|
+                            [ ( "Hello", [ Elm.VariableType "a" ] )
+                            , ( "Goodbye", [] )
+                            , ( "ILoveYou", [] )
+                            ]
+                    )
+                    (Parser.run
+                        (Parser.succeed identity
+                            |. Parser.spaces
+                            |= Elm.typeDeclaration
+                        )
+                        source
+                    )
         ]

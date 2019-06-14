@@ -1,6 +1,5 @@
 module Elm.AST exposing
     ( Alias(..)
-    , Declaration(..)
     , Elm(..)
     , ExposedCustomTypeConstructors(..)
     , ExposedItem(..)
@@ -13,7 +12,9 @@ module Elm.AST exposing
     , Operator(..)
     , Pattern(..)
     , Type(..)
+    , TypeDeclaration(..)
     , UppercaseIdentifier
+    , ValueDeclaration(..)
     )
 
 
@@ -77,17 +78,22 @@ type ModuleName
 type Type
     = LambdaType Type Type
     | VariableType LowercaseIdentifier
-    | CustomType UppercaseIdentifier (List Type)
-    | QualCustomType ModuleName UppercaseIdentifier (List Type)
+    | Type UppercaseIdentifier (List Type)
+    | QualType ModuleName UppercaseIdentifier (List Type)
     | RecordType (Maybe LowercaseIdentifier) (List ( LowercaseIdentifier, Type ))
     | UnitType
     | TupleType Type Type (List Type)
 
 
-type Declaration
+type ValueDeclaration
     = ValueDeclaration LowercaseIdentifier Expression
     | FunctionDeclaration LowercaseIdentifier Pattern (List Pattern) Expression
-    | ValuePatternMatchDeclaration Pattern Expression
+    | PatternMatchDeclaration Pattern Expression
+
+
+type TypeDeclaration
+    = TypeAlias UppercaseIdentifier (List LowercaseIdentifier) Type
+    | CustomType UppercaseIdentifier (List LowercaseIdentifier) (List ( UppercaseIdentifier, List Type ))
 
 
 type Expression
@@ -98,7 +104,7 @@ type Expression
     | LambdaExpression Pattern (List Pattern) Expression
     | CallExpression Expression Expression (List Expression)
     | BinOpCallExpression Expression Operator Expression
-    | LetExpression (List Declaration) Expression
+    | LetExpression (List ValueDeclaration) Expression
     | AccessorExpression LowercaseIdentifier
     | AccessExpression Expression LowercaseIdentifier
     | UpdateExpression LowercaseIdentifier ( LowercaseIdentifier, Expression ) (List ( LowercaseIdentifier, Expression ))

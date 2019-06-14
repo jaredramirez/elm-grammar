@@ -1,6 +1,5 @@
 module Elm.Parser exposing
-    ( declaration
-    , elm
+    ( elm
     , exposedItem
     , exposingList
     , expression
@@ -10,8 +9,10 @@ module Elm.Parser exposing
     , moduleName
     , operator
     , pattern
+    , typeDeclaration
     , type_
     , uppercaseIdentifier
+    , valueDeclaration
     )
 
 import Elm.AST exposing (..)
@@ -49,7 +50,7 @@ type Context
     | CTupleParens
     | CFunctionDeclaration
     | CValueDeclaration
-    | CValuePatternMatchDeclaration
+    | CPatternMatchDeclaration
     | CModuleName
     | COperator
     | CExposedItems
@@ -136,7 +137,7 @@ elm =
             [ Parser.succeed identity
                 |= PExtra.sequenceWithTrailing
                     { subParser = moduleImport
-                    , separator = spacesAtLeastOne
+                    , separator = atLeastOneSpace
                     , spaces = Parser.succeed ()
                     }
             , Parser.succeed []
@@ -406,11 +407,11 @@ customTypeWithoutArgs =
             [ Parser.succeed
                 (\( moduleNames, ctor ) ->
                     \firstModuleName ->
-                        QualCustomType (ModuleName firstModuleName moduleNames) ctor []
+                        QualType (ModuleName firstModuleName moduleNames) ctor []
                 )
                 |. Parser.token dotToken
                 |= Parser.loop [] customTypeHelp
-            , Parser.succeed (\modName -> CustomType modName [])
+            , Parser.succeed (\modName -> Type modName [])
             ]
 
 
@@ -422,25 +423,26 @@ customType =
             [ Parser.succeed
                 (\( moduleNames, ctor ) subPatterns ->
                     \firstModuleName ->
-                        QualCustomType (ModuleName firstModuleName moduleNames) ctor subPatterns
+                        QualType (ModuleName firstModuleName moduleNames) ctor subPatterns
                 )
                 |. Parser.token dotToken
                 |= Parser.loop [] customTypeHelp
-                |. spacesAtLeastOne
                 |= PExtra.sequence
                     { start = emptyToken
                     , end = emptyToken
-                    , item = Parser.lazy (\() -> typeTerm)
-
-                    -- TODO: Remove backtrackable?
-                    , separator = Parser.backtrackable spacesAtLeastOne
+                    , item =
+                        Parser.succeed identity
+                            -- TODO: Remove backtrackable?
+                            |. Parser.backtrackable atLeastOneSpace
+                            |= Parser.lazy (\() -> typeTerm)
+                    , separator = Parser.succeed ()
                     , spaces = Parser.succeed ()
                     , trailing = Parser.Forbidden
                     }
-            , Parser.succeed (\subPatterns -> \modName -> CustomType modName subPatterns)
+            , Parser.succeed (\subPatterns -> \modName -> Type modName subPatterns)
                 |= PExtra.sequenceWithTrailing
                     { subParser = Parser.lazy (\() -> typeTerm)
-                    , separator = spacesAtLeastOne
+                    , separator = atLeastOneSpace
                     , spaces = Parser.succeed ()
                     }
             ]
@@ -510,16 +512,99 @@ recordType =
 
 
 
--- Declaration
+-- Type Declaration --
 
 
-declaration : Parser Declaration
-declaration =
-    declarationWithExpressionParser expression
+typeDeclaration : Parser TypeDeclaration
+typeDeclaration =
+    Parser.succeed identity
+        |. Parser.keyword typeToken
+        |. atLeastOneSpace
+        |= Parser.oneOf
+            [ Parser.succeed TypeAlias
+                |. Parser.keyword aliasToken
+                |. atLeastOneSpace
+                |= uppercaseIdentifier
+                |. atLeastOneSpace
+                |= PExtra.sequence
+                    { start = emptyToken
+                    , end = emptyToken
+                    , item = lowercaseIdentifier
+                    , separator = atLeastOneSpace
+                    , spaces = Parser.succeed ()
+                    , trailing = Parser.Mandatory
+                    }
+                |. Parser.token equalsToken
+                |. atLeastOneSpace
+                |= type_
+            , Parser.succeed
+                (\typeName typeArgs firstCtor restCtors ->
+                    CustomType typeName typeArgs (firstCtor :: restCtors)
+                )
+                |= uppercaseIdentifier
+                |. atLeastOneSpace
+                |= PExtra.sequence
+                    { start = emptyToken
+                    , end = emptyToken
+                    , item = lowercaseIdentifier
+                    , separator = atLeastOneSpace
+                    , spaces = Parser.succeed ()
+                    , trailing = Parser.Optional
+                    }
+                |. Parser.token equalsToken
+                |. Parser.spaces
+                |= customTypeCtor
+                |= Parser.oneOf
+                    [ Parser.succeed identity
+                        |. Parser.token pipeToken
+                        |. Parser.spaces
+                        |= PExtra.sequence
+                            { start = emptyToken
+                            , end = emptyToken
+                            , item = customTypeCtor
+                            , separator =
+                                Parser.succeed ()
+                                    |. Parser.spaces
+                                    |. Parser.token pipeToken
+                                    |. Parser.spaces
+                            , spaces = Parser.succeed ()
+                            , trailing = Parser.Forbidden
+                            }
+                    , Parser.succeed []
+                    ]
+            ]
 
 
-declarationWithExpressionParser : Parser Expression -> Parser Declaration
-declarationWithExpressionParser parseExpression =
+customTypeCtor : Parser ( UppercaseIdentifier, List Type )
+customTypeCtor =
+    Parser.succeed Tuple.pair
+        |= uppercaseIdentifier
+        |= PExtra.sequence
+            { start = emptyToken
+            , end = emptyToken
+            , item =
+                Parser.succeed identity
+                    -- TODO: Remove backtrackable?
+                    |. Parser.backtrackable atLeastOneSpace
+                    |= type_
+            , separator = Parser.succeed ()
+            , spaces = Parser.succeed ()
+            , trailing = Parser.Optional
+            }
+        |. Parser.spaces
+
+
+
+-- Value Declaration --
+
+
+valueDeclaration : Parser ValueDeclaration
+valueDeclaration =
+    valueDeclarationWithExpressionParser expression
+
+
+valueDeclarationWithExpressionParser : Parser Expression -> Parser ValueDeclaration
+valueDeclarationWithExpressionParser parseExpression =
     Parser.inContext CDeclaration <|
         Parser.oneOf
             [ Parser.succeed (\name transformer -> transformer name)
@@ -532,10 +617,10 @@ declarationWithExpressionParser parseExpression =
                                     FunctionDeclaration name firstPattern restPatterns declarations
                             )
                             -- TODO: Remove backtrackable?
-                            |. Parser.backtrackable spacesAtLeastOne
+                            |. Parser.backtrackable atLeastOneSpace
                             |= PExtra.sequenceAtLeastOne
-                                { subParser = pattern
-                                , separator = spacesAtLeastOne
+                                { subParser = patternTerm
+                                , separator = atLeastOneSpace
                                 , spaces = Parser.succeed ()
                                 }
                             |. Parser.spaces
@@ -549,8 +634,8 @@ declarationWithExpressionParser parseExpression =
                             |. Parser.spaces
                             |= parseExpression
                     ]
-            , Parser.inContext CValuePatternMatchDeclaration <|
-                Parser.succeed ValuePatternMatchDeclaration
+            , Parser.inContext CPatternMatchDeclaration <|
+                Parser.succeed PatternMatchDeclaration
                     |= pattern
                     |. Parser.spaces
                     |. Parser.symbol equalsToken
@@ -573,17 +658,18 @@ pattern =
                 ]
             |= Parser.oneOf
                 [ Parser.succeed identity
-                    |. Parser.backtrackable spacesAtLeastOne
+                    -- TODO: Remove backtrackable?
+                    |. Parser.backtrackable atLeastOneSpace
                     |= Parser.oneOf
                         [ Parser.inContext CAliasPattern <|
                             Parser.succeed (\alias_ -> \pat -> AliasPattern pat alias_)
                                 |. Parser.keyword asToken
-                                |. spacesAtLeastOne
+                                |. atLeastOneSpace
                                 |= lowercaseIdentifier
                         , Parser.inContext CConsPattern <|
                             Parser.succeed (\rest -> \head -> ConsPattern head rest)
                                 |. Parser.keyword consToken
-                                |. spacesAtLeastOne
+                                |. atLeastOneSpace
                                 |= Parser.lazy (\() -> pattern)
                         ]
                 , Parser.succeed identity
@@ -654,21 +740,22 @@ ctorPattern =
                     )
                     |. Parser.token dotToken
                     |= Parser.loop [] qualifiedCtorPatternHelp
-                    |. spacesAtLeastOne
                     |= PExtra.sequence
                         { start = emptyToken
                         , end = emptyToken
-                        , item = Parser.lazy (\() -> patternTerm)
-
-                        -- TODO: Remove backtrackable?
-                        , separator = Parser.backtrackable spacesAtLeastOne
+                        , item =
+                            Parser.succeed identity
+                                -- TODO: Remove backtrackable?
+                                |. Parser.backtrackable atLeastOneSpace
+                                |= Parser.lazy (\() -> patternTerm)
+                        , separator = Parser.succeed ()
                         , spaces = Parser.succeed ()
                         , trailing = Parser.Forbidden
                         }
                 , Parser.succeed (\subPatterns -> \modName -> CtorPattern modName subPatterns)
                     |= PExtra.sequenceWithTrailing
                         { subParser = Parser.lazy (\() -> patternTerm)
-                        , separator = spacesAtLeastOne
+                        , separator = atLeastOneSpace
                         , spaces = Parser.succeed ()
                         }
                 ]
@@ -693,149 +780,188 @@ qualifiedCtorPatternHelp uppercaseIdentifiers =
 -- Expression
 
 
-type alias ExpressionState =
-    { isInFunctionCall : Bool }
-
-
 expression : Parser Expression
 expression =
-    expressionWithState { isInFunctionCall = False }
-
-
-expressionWithState : ExpressionState -> Parser Expression
-expressionWithState state =
-    -- Parser.inContext CExpression
     Parser.getCol
         |> Parser.andThen
-            (\column ->
-                Parser.succeed
-                    (\exp transform -> transform exp)
-                    |. checkIndent
+            (\startOfExpression ->
+                Parser.succeed identity
                     |= Parser.oneOf
-                        [ Parser.inContext CNegateExpression <|
-                            Parser.succeed NegateExpression
-                                |. Parser.symbol negateToken
-                                |= Parser.lazy (\() -> expressionWithState state)
-                        , Parser.inContext CLambdaExpression <|
-                            Parser.succeed
-                                (\( firstPattern, restPatterns ) exp ->
-                                    LambdaExpression firstPattern restPatterns exp
-                                )
-                                |. Parser.symbol backSlashToken
-                                |= PExtra.sequenceAtLeastOne
-                                    { subParser = pattern
-                                    , separator = spacesAtLeastOne
-                                    , spaces = Parser.succeed ()
-                                    }
-                                |. Parser.spaces
-                                |. Parser.symbol arrowToken
-                                |. Parser.spaces
-                                |= Parser.lazy (\() -> expressionWithState state)
-                        , Parser.succeed identity
-                            |. Parser.symbol openCurlyBracketToken
-                            |. Parser.spaces
-                            |= Parser.oneOf
-                                [ Parser.inContext CRecordExpression <|
-                                    Parser.map RecordExpression
-                                        (PExtra.sequenceWithTrailing
-                                            { subParser =
-                                                recordKeyValue
-                                                    (Parser.lazy (\() -> expressionWithState state))
-                                                    (Parser.symbol equalsToken)
-                                            , separator = Parser.symbol commaToken
-                                            , spaces = Parser.spaces
-                                            }
-                                        )
-                                , Parser.inContext CUpdateExpression <|
-                                    Parser.succeed
-                                        (\var ( firstProperty, restProperties ) ->
-                                            UpdateExpression var
-                                                firstProperty
-                                                restProperties
-                                        )
-                                        |= lowercaseIdentifier
-                                        |. Parser.spaces
-                                        |. Parser.symbol pipeToken
-                                        |. Parser.spaces
-                                        |= PExtra.sequenceAtLeastOne
-                                            { subParser =
-                                                recordKeyValue (Parser.lazy (\() -> expressionWithState state))
-                                                    (Parser.symbol equalsToken)
-                                            , separator = spacesAtLeastOne
-                                            , spaces = Parser.succeed ()
-                                            }
-                                        |. Parser.spaces
-                                ]
-                            |. Parser.symbol closeCurlyBracketToken
-                        , Parser.inContext CAccessorExpression <|
-                            Parser.succeed AccessorExpression
-                                |. Parser.symbol dotToken
-                                |= lowercaseIdentifier
-                        , qualifiedVariableExpression
-                        , letExpression state
-                        , caseExpression state
-                        , ifExpression state
-                        , charLiteral |> Parser.map CharExpression
-                        , Parser.inContext CString <|
-                            (stringLiteral |> Parser.map StringExpression)
-                        , Parser.inContext CVariable <|
-                            (variableLiteral |> Parser.map VarExpression)
-                        , Parser.inContext CList <|
-                            (listLiteral (Parser.lazy (\() -> expressionWithState state)) |> Parser.map ListExpression)
-                        , unitTupleParensLiteral (Parser.lazy (\() -> expressionWithState state))
-                            UnitExpression
-                            TupleExpression
-                        , Parser.inContext CNumber <|
-                            numberLiteral IntExpression FloatExpression
-                        ]
-                    |= Parser.oneOf
-                        [ Parser.inContext CAccessExpression <|
-                            Parser.succeed (\prop -> \exp -> AccessExpression exp prop)
-                                |. Parser.symbol dotToken
-                                |= lowercaseIdentifier
-                        , Parser.succeed (\op secondExp -> \firstExp -> BinOpCallExpression firstExp op secondExp)
-                            -- TODO: Remove backtrackable?
-                            |. Parser.backtrackable Parser.spaces
-                            |= operator
-                            |. Parser.spaces
-                            |= Parser.lazy (\() -> expressionWithState state)
-                        , Parser.inContext CCallExpression <|
-                            if state.isInFunctionCall then
-                                Parser.problem InternalCallExpressionProblem
-
-                            else
-                                Parser.succeed
-                                    (\( firstArg, restArgs ) ->
-                                        \exp -> CallExpression exp firstArg restArgs
-                                    )
-                                    -- TODO: Remove backtrackable?
-                                    |. Parser.backtrackable spacesAtLeastOne
-                                    |= Parser.withIndent column
-                                        (PExtra.sequence
-                                            { start = emptyToken
-                                            , end = emptyToken
-                                            , item =
-                                                Parser.lazy
-                                                    (\() -> expressionWithState { state | isInFunctionCall = True })
-
-                                            -- TODO: Remove backtrackable?
-                                            , separator = Parser.backtrackable spacesAtLeastOne
-                                            , spaces = Parser.succeed ()
-                                            , trailing = Parser.Forbidden
-                                            }
-                                            |> Parser.andThen
-                                                (\args ->
-                                                    case args of
-                                                        [] ->
-                                                            Parser.problem ExpectingArguement
-
-                                                        head :: rest ->
-                                                            Parser.succeed ( head, rest )
-                                                )
-                                        )
-                        , Parser.succeed identity
+                        [ letExpression
+                        , ifExpression
+                        , caseExpression
+                        , lambdaExpression
+                        , possiblyNegativeTerm
+                            |> Parser.andThen (endOfExpression startOfExpression)
                         ]
             )
+
+
+
+-- Expression Term --
+
+
+possiblyNegativeTerm : Parser Expression
+possiblyNegativeTerm =
+    Parser.oneOf
+        [ Parser.succeed NegateExpression
+            |. Parser.token minusToken
+            |= expressionTerm
+        , expressionTerm
+        ]
+
+
+expressionTerm : Parser Expression
+expressionTerm =
+    Parser.succeed identity
+        |. checkIndent
+        |= Parser.oneOf
+            [ Parser.inContext CVariable <|
+                (variableLiteral
+                    |> Parser.map VarExpression
+                    |> Parser.andThen accessible
+                )
+            , qualifiedVariableExpression
+                |> Parser.andThen accessible
+            , recordOrUpdateExpression
+                |> Parser.andThen accessible
+            , charLiteral |> Parser.map CharExpression
+            , Parser.inContext CString <|
+                (stringLiteral |> Parser.map StringExpression)
+            , Parser.inContext CList <|
+                (listLiteral (Parser.lazy (\() -> expression)) |> Parser.map ListExpression)
+            , unitTupleParensLiteral (Parser.lazy (\() -> expression))
+                UnitExpression
+                TupleExpression
+
+            -- Must come before number
+            , Parser.succeed AccessorExpression
+                |. Parser.backtrackable (Parser.token dotToken)
+                |= lowercaseIdentifier
+            , Parser.inContext CNumber <| numberLiteral IntExpression FloatExpression
+            ]
+
+
+
+-- After Expression --
+
+
+accessible : Expression -> Parser Expression
+accessible exp =
+    Parser.oneOf
+        [ Parser.succeed (\field -> AccessExpression exp field)
+            |. Parser.token dotToken
+            |= lowercaseIdentifier
+        , Parser.succeed exp
+        ]
+
+
+endOfExpression : Int -> Expression -> Parser Expression
+endOfExpression startOfExpression exp =
+    Parser.oneOf
+        [ Parser.inContext CCallExpression <|
+            Parser.succeed
+                (\( firstArg, restArgs ) ->
+                    CallExpression exp firstArg restArgs
+                )
+                |= Parser.withIndent startOfExpression
+                    (PExtra.sequence
+                        { start = emptyToken
+                        , end = emptyToken
+                        , item =
+                            Parser.succeed identity
+                                -- TODO: Remove backtrackable?
+                                |. Parser.backtrackable atLeastOneSpace
+                                |= Parser.lazy (\() -> expressionTerm)
+                        , separator = Parser.succeed ()
+                        , spaces = Parser.succeed ()
+                        , trailing = Parser.Forbidden
+                        }
+                        |> Parser.andThen
+                            (\args ->
+                                case args of
+                                    [] ->
+                                        Parser.problem ExpectingArguement
+
+                                    head :: rest ->
+                                        Parser.succeed ( head, rest )
+                            )
+                    )
+        , Parser.succeed (\op secondExp -> BinOpCallExpression exp op secondExp)
+            -- TODO: Remove backtrackable?
+            |. Parser.backtrackable Parser.spaces
+            |= operator
+            |. Parser.spaces
+            |= Parser.lazy (\() -> expression)
+        , Parser.succeed exp
+        ]
+
+
+
+-- Lambda Expression --
+
+
+lambdaExpression : Parser Expression
+lambdaExpression =
+    Parser.inContext CLambdaExpression <|
+        Parser.succeed
+            (\( firstPattern, restPatterns ) exp ->
+                LambdaExpression firstPattern restPatterns exp
+            )
+            |. Parser.symbol backSlashToken
+            |= PExtra.sequenceAtLeastOne
+                { subParser = pattern
+                , separator = atLeastOneSpace
+                , spaces = Parser.succeed ()
+                }
+            |. Parser.spaces
+            |. Parser.symbol arrowToken
+            |. Parser.spaces
+            |= Parser.lazy (\() -> expression)
+
+
+
+-- Record/Update Expression --
+
+
+recordOrUpdateExpression : Parser Expression
+recordOrUpdateExpression =
+    Parser.succeed identity
+        |. Parser.symbol openCurlyBracketToken
+        |. Parser.spaces
+        |= Parser.oneOf
+            [ Parser.inContext CRecordExpression <|
+                Parser.map RecordExpression
+                    (PExtra.sequenceWithTrailing
+                        { subParser =
+                            recordKeyValue
+                                (Parser.lazy (\() -> expression))
+                                (Parser.symbol equalsToken)
+                        , separator = Parser.symbol commaToken
+                        , spaces = Parser.spaces
+                        }
+                    )
+            , Parser.inContext CUpdateExpression <|
+                Parser.succeed
+                    (\var ( firstProperty, restProperties ) ->
+                        UpdateExpression var
+                            firstProperty
+                            restProperties
+                    )
+                    |= lowercaseIdentifier
+                    |. Parser.spaces
+                    |. Parser.symbol pipeToken
+                    |. Parser.spaces
+                    |= PExtra.sequenceAtLeastOne
+                        { subParser =
+                            recordKeyValue (Parser.lazy (\() -> expression))
+                                (Parser.symbol equalsToken)
+                        , separator = atLeastOneSpace
+                        , spaces = Parser.succeed ()
+                        }
+                    |. Parser.spaces
+            ]
+        |. Parser.symbol closeCurlyBracketToken
 
 
 
@@ -884,43 +1010,42 @@ qualifiedVariableExpressionHelp uppercaseIdentifiers =
 -- If Expression --
 
 
-ifExpression : ExpressionState -> Parser Expression
-ifExpression state =
+ifExpression : Parser Expression
+ifExpression =
     Parser.succeed IfExpression
         |. Parser.keyword ifToken
-        |. spacesAtLeastOne
-        |= Parser.lazy (\() -> expressionWithState state)
-        |. spacesAtLeastOne
+        |. atLeastOneSpace
+        |= Parser.lazy (\() -> expression)
+        |. atLeastOneSpace
         |. Parser.keyword thenToken
-        |. spacesAtLeastOne
-        |= Parser.lazy (\() -> expressionWithState state)
-        |. spacesAtLeastOne
+        |. atLeastOneSpace
+        |= Parser.lazy (\() -> expression)
+        |. atLeastOneSpace
         |. Parser.keyword elseToken
-        |. spacesAtLeastOne
-        |= Parser.lazy (\() -> expressionWithState state)
+        |. atLeastOneSpace
+        |= Parser.lazy (\() -> expression)
 
 
 
 -- Case Expression --
 
 
-caseExpression : ExpressionState -> Parser Expression
-caseExpression state =
+caseExpression : Parser Expression
+caseExpression =
     Parser.succeed CaseExpression
         |. Parser.keyword caseToken
-        |. spacesAtLeastOne
+        |. atLeastOneSpace
         |= pattern
-        |. spacesAtLeastOne
+        |. atLeastOneSpace
         |. Parser.keyword ofToken
-        |. spacesAtLeastOne
-        |= Parser.loop [] (caseExpressionHelp state)
+        |. atLeastOneSpace
+        |= Parser.loop [] caseExpressionHelp
 
 
 caseExpressionHelp :
-    ExpressionState
-    -> List ( Pattern, Expression )
+    List ( Pattern, Expression )
     -> Parser (Parser.Step (List ( Pattern, Expression )) (List ( Pattern, Expression )))
-caseExpressionHelp state items =
+caseExpressionHelp items =
     Parser.oneOf
         [ Parser.succeed
             (\casePat caseExp -> Parser.Loop (( casePat, caseExp ) :: items))
@@ -928,8 +1053,8 @@ caseExpressionHelp state items =
             |. Parser.spaces
             |. Parser.token arrowToken
             |. Parser.spaces
-            |= Parser.lazy (\() -> expressionWithState state)
-            |. spacesAtLeastOne
+            |= Parser.lazy (\() -> expression)
+            |. atLeastOneSpace
         , Parser.succeed (Parser.Done (List.reverse items))
         ]
 
@@ -938,36 +1063,35 @@ caseExpressionHelp state items =
 -- Let Expression --
 
 
-letExpression : ExpressionState -> Parser Expression
-letExpression state =
+letExpression : Parser Expression
+letExpression =
     Parser.inContext CLetExpression
         (Parser.succeed LetExpression
             |. Parser.keyword letToken
-            |. spacesAtLeastOne
+            |. atLeastOneSpace
             |= (Parser.inContext CLetExpressionDeclarations <|
-                    Parser.loop [] (letExpressionHelp state)
+                    Parser.loop [] letExpressionHelp
                )
             |= (Parser.inContext CLetExpressionBody <|
                     Parser.succeed identity
                         -- No spacesAtLeastOne here because the space is parsed
                         -- after the last let declaration
                         |. Parser.keyword inToken
-                        |. spacesAtLeastOne
+                        |. atLeastOneSpace
                         |= Parser.lazy (\_ -> expression)
                )
         )
 
 
 letExpressionHelp :
-    ExpressionState
-    -> List Declaration
-    -> Parser (Parser.Step (List Declaration) (List Declaration))
-letExpressionHelp state items =
+    List ValueDeclaration
+    -> Parser (Parser.Step (List ValueDeclaration) (List ValueDeclaration))
+letExpressionHelp items =
     Parser.oneOf
         [ Parser.succeed (\nextItem -> Parser.Loop (nextItem :: items))
-            |= declarationWithExpressionParser
-                (Parser.lazy (\() -> expressionWithState state))
-            |. spacesAtLeastOne
+            |= valueDeclarationWithExpressionParser
+                (Parser.lazy (\() -> expression))
+            |. atLeastOneSpace
         , Parser.succeed (Parser.Done (List.reverse items))
         ]
 
@@ -1447,8 +1571,8 @@ emptyToken =
 -- Parser Extras Applied --
 
 
-spacesAtLeastOne : Parser ()
-spacesAtLeastOne =
+atLeastOneSpace : Parser ()
+atLeastOneSpace =
     PExtra.spacesAtLeastOne ExpectingSpaces
 
 

@@ -33,7 +33,6 @@ type Context
     | CLetExpression
     | CLetExpressionDeclarations
     | CLetExpressionBody
-    | CLetExpressionDeclaration
     | CAccessExpression
     | CCallExpression
     | CPattern
@@ -41,17 +40,12 @@ type Context
     | CCtorPattern
     | CAliasPattern
     | CConsPattern
-    | CQualCtorPattern
     | CChar
     | CString
     | CVariable
     | CList
     | CNumber
-    | CUnitTupleTripleParens
-    | CTupleTripleParens
-    | CTupleTriple
-    | CTriple
-    | CValueFunctionDeclaration
+    | CTupleParens
     | CFunctionDeclaration
     | CValueDeclaration
     | CValuePatternMatchDeclaration
@@ -71,7 +65,6 @@ type Problem
     | ExpectingExposing
     | ExpectingImport
     | ExpectingSpaces
-    | ExpectingNewLine
     | ExpectingAs
     | ExpectingType
     | ExpectingAlias
@@ -444,7 +437,6 @@ pattern =
                 , unitTupleTripleParensLiteral (Parser.lazy (\() -> pattern))
                     UnitPattern
                     TuplePattern
-                    TriplePattern
                 ]
             |= Parser.oneOf
                 [ Parser.succeed identity
@@ -608,7 +600,6 @@ expressionWithState state =
                         , unitTupleTripleParensLiteral (Parser.lazy (\() -> expressionWithState state))
                             UnitExpression
                             TupleExpression
-                            TripleExpression
                         , Parser.inContext CNumber <|
                             numberLiteral IntExpression FloatExpression
                         ]
@@ -885,51 +876,43 @@ numberLiteral fromInt fromFloat =
 unitTupleTripleParensLiteral :
     Parser decodesTo
     -> decodesTo
-    -> (decodesTo -> decodesTo -> decodesTo)
-    -> (decodesTo -> decodesTo -> decodesTo -> decodesTo)
+    -> (decodesTo -> decodesTo -> List decodesTo -> decodesTo)
     -> Parser decodesTo
-unitTupleTripleParensLiteral subParser fromUnit fromTuple fromTriple =
-    Parser.inContext CUnitTupleTripleParens <|
-        Parser.succeed identity
-            |. Parser.symbol openParenthesisToken
-            |= Parser.oneOf
-                [ Parser.succeed fromUnit
-                    |. Parser.symbol closeParenthesisToken
-                , Parser.inContext CTupleTripleParens <|
-                    Parser.succeed (\sub fromSub -> fromSub sub)
-                        |. Parser.spaces
-                        |= subParser
-                        |. Parser.spaces
-                        |= Parser.oneOf
-                            [ Parser.succeed identity
-                                |. Parser.symbol closeParenthesisToken
-                            , Parser.inContext CTupleTriple <|
-                                Parser.succeed
-                                    (\second maybeThird ->
-                                        \first ->
-                                            case maybeThird of
-                                                Nothing ->
-                                                    fromTuple first second
-
-                                                Just third ->
-                                                    fromTriple first second third
-                                    )
+unitTupleTripleParensLiteral subParser fromUnit fromTuple =
+    Parser.succeed identity
+        |. Parser.symbol openParenthesisToken
+        |= Parser.oneOf
+            [ Parser.succeed fromUnit
+                |. Parser.symbol closeParenthesisToken
+            , Parser.inContext CTupleParens <|
+                Parser.succeed (\first transformer -> transformer first)
+                    |. Parser.spaces
+                    |= subParser
+                    |. Parser.spaces
+                    |= Parser.oneOf
+                        [ Parser.succeed identity
+                            |. Parser.symbol closeParenthesisToken
+                        , Parser.succeed (\second rest -> \first -> fromTuple first second rest)
+                            |. Parser.symbol commaToken
+                            |. Parser.spaces
+                            |= subParser
+                            |. Parser.spaces
+                            |= Parser.oneOf
+                                [ Parser.succeed identity
                                     |. Parser.symbol commaToken
-                                    |. Parser.spaces
-                                    |= subParser
-                                    |. Parser.spaces
-                                    |= Parser.oneOf
-                                        [ Parser.inContext CTriple <|
-                                            Parser.succeed Just
-                                                |. Parser.symbol commaToken
-                                                |. Parser.spaces
-                                                |= subParser
-                                                |. Parser.spaces
-                                        , Parser.succeed Nothing
-                                        ]
-                                    |. Parser.symbol closeParenthesisToken
-                            ]
-                ]
+                                    |= Parser.sequence
+                                        { start = emptyToken
+                                        , end = emptyToken
+                                        , item = subParser
+                                        , separator = commaToken
+                                        , spaces = Parser.spaces
+                                        , trailing = Parser.Optional
+                                        }
+                                , Parser.succeed []
+                                ]
+                            |. Parser.symbol closeParenthesisToken
+                        ]
+            ]
 
 
 listLiteral : Parser decodesTo -> Parser (List decodesTo)

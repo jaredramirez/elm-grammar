@@ -94,8 +94,7 @@ type Expression
     | UpdateExpression LowercaseIdentifier ( LowercaseIdentifier, Expression ) (List ( LowercaseIdentifier, Expression ))
     | CaseExpression Pattern (List ( Pattern, Expression ))
     | IfExpression Expression Expression Expression
-    | TupleExpression Expression Expression
-    | TripleExpression Expression Expression Expression
+    | TupleExpression Expression Expression (List Expression)
     | UnitExpression
     | IntExpression Int
     | FloatExpression Float
@@ -107,8 +106,7 @@ type Expression
 type Pattern
     = AnythingPattern
     | LowerPattern LowercaseIdentifier
-    | TuplePattern Pattern Pattern
-    | TriplePattern Pattern Pattern Pattern
+    | TuplePattern Pattern Pattern (List Pattern)
     | UnitPattern
     | RecordPattern (List LowercaseIdentifier)
     | ListPattern (List Pattern)

@@ -1121,10 +1121,7 @@ patternTests =
                 in
                 Expect.equal
                     (Ok
-                        (Elm.TuplePattern
-                            (Elm.LowerPattern "h")
-                            Elm.AnythingPattern
-                        )
+                        (Elm.TuplePattern (Elm.LowerPattern "h") Elm.AnythingPattern [])
                     )
                     (Parser.run Elm.pattern source)
         , Test.test "Triple" <|
@@ -1135,10 +1132,10 @@ patternTests =
                 in
                 Expect.equal
                     (Ok
-                        (Elm.TriplePattern
+                        (Elm.TuplePattern
                             (Elm.LowerPattern "h")
                             Elm.AnythingPattern
-                            (Elm.LowerPattern "yikes")
+                            [ Elm.LowerPattern "yikes" ]
                         )
                     )
                     (Parser.run Elm.pattern source)
@@ -1154,8 +1151,10 @@ patternTests =
                             (Elm.TuplePattern
                                 Elm.AnythingPattern
                                 (Elm.LowerPattern "myThing")
+                                []
                             )
                             Elm.AnythingPattern
+                            []
                         )
                     )
                     (Parser.run Elm.pattern source)
@@ -1228,6 +1227,7 @@ patternTests =
                             (Elm.TuplePattern
                                 (Elm.LowerPattern "myMan")
                                 Elm.AnythingPattern
+                                []
                             )
                             "aaaabbbb"
                         )
@@ -1550,6 +1550,7 @@ expressionTests =
                         (Elm.TupleExpression
                             (Elm.IntExpression 1)
                             (Elm.IntExpression 2)
+                            []
                         )
                     )
                     (Parser.run Elm.expression source)
@@ -1561,10 +1562,9 @@ expressionTests =
                 in
                 Expect.equal
                     (Ok
-                        (Elm.TripleExpression
-                            (Elm.IntExpression 1)
+                        (Elm.TupleExpression (Elm.IntExpression 1)
                             (Elm.IntExpression 2)
-                            (Elm.IntExpression 3)
+                            [ Elm.IntExpression 3 ]
                         )
                     )
                     (Parser.run Elm.expression source)
@@ -1643,10 +1643,11 @@ expressionTests =
                                 []
                                 (Elm.IntExpression 1234)
                             , Elm.ValuePatternMatchDeclaration
-                                (Elm.TuplePattern (Elm.LowerPattern "a") (Elm.LowerPattern "b"))
+                                (Elm.TuplePattern (Elm.LowerPattern "a") (Elm.LowerPattern "b") [])
                                 (Elm.TupleExpression
                                     (Elm.StringExpression "hello")
                                     (Elm.StringExpression "world")
+                                    []
                                 )
                             ]
                             (Elm.VarExpression "hello")
@@ -1971,8 +1972,8 @@ declarationTests =
                 Expect.equal
                     (Ok
                         (Elm.ValuePatternMatchDeclaration
-                            (Elm.TuplePattern (Elm.LowerPattern "hello") (Elm.LowerPattern "world"))
-                            (Elm.TupleExpression (Elm.CharExpression "h") (Elm.CharExpression "w"))
+                            (Elm.TuplePattern (Elm.LowerPattern "hello") (Elm.LowerPattern "world") [])
+                            (Elm.TupleExpression (Elm.CharExpression "h") (Elm.CharExpression "w") [])
                         )
                     )
                     (Parser.run Elm.declaration source)

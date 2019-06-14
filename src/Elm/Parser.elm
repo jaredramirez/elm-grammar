@@ -1126,15 +1126,18 @@ variableLiteral =
         }
 
 
-{-| TODO: Handle escapes
-<https://github.com/elm/parser/blob/master/examples/DoubleQuoteString.elm>
--}
 charLiteral : Parser String
 charLiteral =
     Parser.inContext CChar <|
         Parser.succeed identity
             |. Parser.symbol singleQuoteToken
-            |= (Parser.chompIf (\_ -> True) ExpectingCharacter |> Parser.getChompedString)
+            |= Parser.oneOf
+                [ Parser.getChompedString <|
+                    Parser.succeed ()
+                        |. Parser.chompIf (\c -> c == '\\') ExpectingBackSlash
+                        |. Parser.chompIf Char.isAlphaNum ExpectingCharacter
+                , Parser.chompIf Char.isAlphaNum ExpectingCharacter |> Parser.getChompedString
+                ]
             |. Parser.symbol singleQuoteToken
 
 

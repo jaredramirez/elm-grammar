@@ -10,6 +10,7 @@ module Elm.Parser exposing
     , moduleName
     , operator
     , pattern
+    , type_
     , uppercaseIdentifier
     )
 
@@ -57,6 +58,7 @@ type Context
     | CModuleImport ModuleName
     | CModuleDeclaration
     | CDeclaration
+    | CType
 
 
 type Problem
@@ -112,6 +114,7 @@ type Problem
     | InternalCallExpressionProblem
     | InternalQualifiedVarExpressionProblem
     | ExpectingAtLeastOneModuleName
+    | ExpectingColon
 
 
 
@@ -356,6 +359,157 @@ moduleName =
 
 
 
+-- Types --
+
+
+type_ : Parser Type
+type_ =
+    Parser.inContext CType
+        (Parser.oneOf
+            [ customType
+            , typeTerm
+            ]
+            |> Parser.andThen
+                (\tipe ->
+                    Parser.oneOf
+                        [ Parser.succeed (\result -> LambdaType tipe result)
+                            -- TODO: Remove backtrackable
+                            |. Parser.backtrackable Parser.spaces
+                            |. Parser.token arrowToken
+                            |. Parser.spaces
+                            |= Parser.lazy (\() -> type_)
+                        , Parser.succeed tipe
+                        ]
+                )
+        )
+
+
+typeTerm : Parser Type
+typeTerm =
+    Parser.oneOf
+        [ customTypeWithoutArgs
+        , lowercaseIdentifier |> Parser.map VariableType
+        , unitTupleParensLiteral (Parser.lazy (\() -> type_)) UnitType TupleType
+        , recordType
+        ]
+
+
+
+-- Custom Type and Qualified Custom Type --
+
+
+customTypeWithoutArgs : Parser Type
+customTypeWithoutArgs =
+    Parser.succeed (\modName transformer -> transformer modName)
+        |= uppercaseIdentifier
+        |= Parser.oneOf
+            [ Parser.succeed
+                (\( moduleNames, ctor ) ->
+                    \firstModuleName ->
+                        QualCustomType (ModuleName firstModuleName moduleNames) ctor []
+                )
+                |. Parser.token dotToken
+                |= Parser.loop [] customTypeHelp
+            , Parser.succeed (\modName -> CustomType modName [])
+            ]
+
+
+customType : Parser Type
+customType =
+    Parser.succeed (\modName transformer -> transformer modName)
+        |= uppercaseIdentifier
+        |= Parser.oneOf
+            [ Parser.succeed
+                (\( moduleNames, ctor ) subPatterns ->
+                    \firstModuleName ->
+                        QualCustomType (ModuleName firstModuleName moduleNames) ctor subPatterns
+                )
+                |. Parser.token dotToken
+                |= Parser.loop [] customTypeHelp
+                |. spacesAtLeastOne
+                |= PExtra.sequence
+                    { start = emptyToken
+                    , end = emptyToken
+                    , item = Parser.lazy (\() -> typeTerm)
+
+                    -- TODO: Remove backtrackable?
+                    , separator = Parser.backtrackable spacesAtLeastOne
+                    , spaces = Parser.succeed ()
+                    , trailing = Parser.Forbidden
+                    }
+            , Parser.succeed (\subPatterns -> \modName -> CustomType modName subPatterns)
+                |= PExtra.sequenceWithTrailing
+                    { subParser = Parser.lazy (\() -> typeTerm)
+                    , separator = spacesAtLeastOne
+                    , spaces = Parser.succeed ()
+                    }
+            ]
+
+
+customTypeHelp :
+    List UppercaseIdentifier
+    -> Parser (Parser.Step (List UppercaseIdentifier) ( List UppercaseIdentifier, UppercaseIdentifier ))
+customTypeHelp uppercaseIdentifiers =
+    Parser.succeed (\upperVar transformer -> transformer upperVar)
+        |= uppercaseIdentifier
+        |= Parser.oneOf
+            [ Parser.token dotToken
+                |> Parser.map (\() -> \upperVar -> Parser.Loop (upperVar :: uppercaseIdentifiers))
+            , Parser.succeed
+                (\upperVar -> Parser.Done ( List.reverse uppercaseIdentifiers, upperVar ))
+            ]
+
+
+
+-- Record Type --
+
+
+recordType : Parser Type
+recordType =
+    Parser.succeed (\firstLower transformer -> transformer firstLower)
+        |. Parser.symbol openCurlyBracketToken
+        |. Parser.spaces
+        |= lowercaseIdentifier
+        |. Parser.spaces
+        |= Parser.oneOf
+            [ Parser.succeed (\rest -> \firstLower -> RecordType (Just firstLower) rest)
+                |. Parser.token pipeToken
+                |. Parser.spaces
+                |= PExtra.sequenceWithTrailing
+                    { subParser =
+                        recordKeyValue
+                            (Parser.lazy (\() -> type_))
+                            (Parser.symbol colonToken)
+                    , separator = Parser.symbol commaToken
+                    , spaces = Parser.spaces
+                    }
+            , Parser.succeed
+                (\firstType rest ->
+                    \firstLower -> RecordType Nothing (( firstLower, firstType ) :: rest)
+                )
+                |. Parser.symbol colonToken
+                |. Parser.spaces
+                |= Parser.lazy (\() -> type_)
+                |. Parser.spaces
+                |= Parser.oneOf
+                    [ Parser.succeed identity
+                        |. Parser.token commaToken
+                        |. Parser.spaces
+                        |= PExtra.sequenceWithTrailing
+                            { subParser =
+                                recordKeyValue
+                                    (Parser.lazy (\() -> type_))
+                                    (Parser.symbol colonToken)
+                            , separator = Parser.symbol commaToken
+                            , spaces = Parser.spaces
+                            }
+                    , Parser.succeed []
+                    ]
+            ]
+        |. Parser.symbol closeCurlyBracketToken
+
+
+
 -- Declaration
 
 
@@ -406,7 +560,8 @@ declarationWithExpressionParser parseExpression =
 
 
 
--- Pattern
+-- Pattern --
+-- TODO: Update qualified ctor to be similar to types
 
 
 pattern : Parser Pattern
@@ -434,7 +589,7 @@ pattern =
                 , numberLiteral IntPattern FloatPattern
                 , listLiteral (Parser.lazy (\() -> pattern))
                     |> Parser.map ListPattern
-                , unitTupleTripleParensLiteral (Parser.lazy (\() -> pattern))
+                , unitTupleParensLiteral (Parser.lazy (\() -> pattern))
                     UnitPattern
                     TuplePattern
                 ]
@@ -458,7 +613,7 @@ pattern =
 
 
 
--- Qualified Ctor Pattern --
+-- Ctor Pattern and Qualified Ctor Pattern --
 
 
 ctorPattern : Parser Pattern
@@ -558,7 +713,10 @@ expressionWithState state =
                                 [ Parser.inContext CRecordExpression <|
                                     Parser.map RecordExpression
                                         (PExtra.sequenceWithTrailing
-                                            { subParser = Parser.lazy (\() -> recordKeyValue)
+                                            { subParser =
+                                                recordKeyValue
+                                                    (Parser.lazy (\() -> expressionWithState state))
+                                                    (Parser.symbol equalsToken)
                                             , separator = Parser.symbol commaToken
                                             , spaces = Parser.spaces
                                             }
@@ -575,7 +733,9 @@ expressionWithState state =
                                         |. Parser.symbol pipeToken
                                         |. Parser.spaces
                                         |= PExtra.sequenceAtLeastOne
-                                            { subParser = Parser.lazy (\() -> recordKeyValue)
+                                            { subParser =
+                                                recordKeyValue (Parser.lazy (\() -> expressionWithState state))
+                                                    (Parser.symbol equalsToken)
                                             , separator = spacesAtLeastOne
                                             , spaces = Parser.succeed ()
                                             }
@@ -597,7 +757,7 @@ expressionWithState state =
                             (variableLiteral |> Parser.map VarExpression)
                         , Parser.inContext CList <|
                             (listLiteral (Parser.lazy (\() -> expressionWithState state)) |> Parser.map ListExpression)
-                        , unitTupleTripleParensLiteral (Parser.lazy (\() -> expressionWithState state))
+                        , unitTupleParensLiteral (Parser.lazy (\() -> expressionWithState state))
                             UnitExpression
                             TupleExpression
                         , Parser.inContext CNumber <|
@@ -788,18 +948,18 @@ letExpressionHelp state items =
 
 
 
--- Pattern/Expression Helpers --
+-- Record Helpers --
 
 
-recordKeyValue : Parser ( LowercaseIdentifier, Expression )
-recordKeyValue =
+recordKeyValue : Parser item -> Parser sep -> Parser ( LowercaseIdentifier, item )
+recordKeyValue item separator =
     Parser.inContext CRecordKeyValue <|
         Parser.succeed Tuple.pair
             |= lowercaseIdentifier
             |. Parser.spaces
-            |. Parser.symbol equalsToken
+            |. separator
             |. Parser.spaces
-            |= expression
+            |= item
             |. Parser.spaces
 
 
@@ -873,12 +1033,12 @@ numberLiteral fromInt fromFloat =
 
 {-| TODO: Do these contexts make sense?
 -}
-unitTupleTripleParensLiteral :
+unitTupleParensLiteral :
     Parser decodesTo
     -> decodesTo
     -> (decodesTo -> decodesTo -> List decodesTo -> decodesTo)
     -> Parser decodesTo
-unitTupleTripleParensLiteral subParser fromUnit fromTuple =
+unitTupleParensLiteral subParser fromUnit fromTuple =
     Parser.succeed identity
         |. Parser.symbol openParenthesisToken
         |= Parser.oneOf
@@ -1131,6 +1291,11 @@ elseToken =
 consToken : Parser.Token Problem
 consToken =
     Parser.Token "::" ExpectingCons
+
+
+colonToken : Parser.Token Problem
+colonToken =
+    Parser.Token ":" ExpectingColon
 
 
 openParenthesisToken : Parser.Token Problem

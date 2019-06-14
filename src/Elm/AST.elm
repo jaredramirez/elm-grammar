@@ -12,6 +12,7 @@ module Elm.AST exposing
     , ModuleName(..)
     , Operator(..)
     , Pattern(..)
+    , Type(..)
     , UppercaseIdentifier
     )
 
@@ -27,7 +28,6 @@ type ModuleDeclaration
 
 type ModuleImport
     = ModuleImport ModuleName Alias (Maybe ExposingList)
-    | ModuleImportIncomplete
 
 
 type Alias
@@ -72,6 +72,16 @@ type Operator
 
 type ModuleName
     = ModuleName UppercaseIdentifier (List UppercaseIdentifier)
+
+
+type Type
+    = LambdaType Type Type
+    | VariableType LowercaseIdentifier
+    | CustomType UppercaseIdentifier (List Type)
+    | QualCustomType ModuleName UppercaseIdentifier (List Type)
+    | RecordType (Maybe LowercaseIdentifier) (List ( LowercaseIdentifier, Type ))
+    | UnitType
+    | TupleType Type Type (List Type)
 
 
 type Declaration

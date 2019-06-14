@@ -21,6 +21,7 @@ test =
         , patternTests
         , expressionTests
         , declarationTests
+        , typeTests
         ]
 
 
@@ -1977,4 +1978,215 @@ declarationTests =
                         )
                     )
                     (Parser.run Elm.declaration source)
+        ]
+
+
+typeTests : Test.Test
+typeTests =
+    Test.describe "Type Tests"
+        [ Test.test "variable" <|
+            \_ ->
+                let
+                    source =
+                        "hello"
+                in
+                Expect.equal
+                    (Ok <| Elm.VariableType "hello")
+                    (Parser.run Elm.type_ source)
+        , Test.test "custom" <|
+            \_ ->
+                let
+                    source =
+                        "Hello"
+                in
+                Expect.equal
+                    (Ok <| Elm.CustomType "Hello" [])
+                    (Parser.run Elm.type_ source)
+        , Test.test "custom with args" <|
+            \_ ->
+                let
+                    source =
+                        "Hello my World"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.CustomType "Hello"
+                            [ Elm.VariableType "my"
+                            , Elm.CustomType "World" []
+                            ]
+                    )
+                    (Parser.run Elm.type_ source)
+        , Test.test "qualified custom " <|
+            \_ ->
+                let
+                    source =
+                        "My.Hello.World my"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.QualCustomType (Elm.ModuleName "My" [ "Hello" ])
+                            "World"
+                            [ Elm.VariableType "my" ]
+                    )
+                    (Parser.run Elm.type_ source)
+        , Test.test "qualified custom nested custom type" <|
+            \_ ->
+                let
+                    source =
+                        "My.Hello.World My goodness"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.QualCustomType (Elm.ModuleName "My" [ "Hello" ])
+                            "World"
+                            [ Elm.CustomType "My" []
+                            , Elm.VariableType "goodness"
+                            ]
+                    )
+                    (Parser.run Elm.type_ source)
+        , Test.test "record" <|
+            \_ ->
+                let
+                    source =
+                        "{ hello : World}"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.RecordType Nothing
+                            [ ( "hello", Elm.CustomType "World" [] )
+                            ]
+                    )
+                    (Parser.run Elm.type_ source)
+        , Test.test "record multiple keys" <|
+            \_ ->
+                let
+                    source =
+                        "{ hello : World, my : RemoteData.RemoteData success failure}"
+                in
+                Expect.equal
+                    (Ok <|
+                        Elm.RecordType Nothing
+                            [ ( "hello", Elm.CustomType "World" [] )
+                            , ( "my"
+                              , Elm.QualCustomType (Elm.ModuleName "RemoteData" [])
+                                    "RemoteData"
+                                    [ Elm.VariableType "success"
+                                    , Elm.VariableType "failure"
+                                    ]
+                              )
+                            ]
+                    )
+                    (Parser.run Elm.type_ source)
+        , Test.test "unit" <|
+            \_ ->
+                let
+                    source =
+                        "()"
+                in
+                Expect.equal
+                    (Ok Elm.UnitType)
+                    (Parser.run Elm.type_ source)
+        , Test.test "tuple" <|
+            \_ ->
+                let
+                    source =
+                        "(RemoteData.RemoteData success failure, ())"
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.TupleType
+                            (Elm.QualCustomType (Elm.ModuleName "RemoteData" [])
+                                "RemoteData"
+                                [ Elm.VariableType "success"
+                                , Elm.VariableType "failure"
+                                ]
+                            )
+                            Elm.UnitType
+                            []
+                        )
+                    )
+                    (Parser.run Elm.type_ source)
+        , Test.test "triple" <|
+            \_ ->
+                let
+                    source =
+                        "(RemoteData.RemoteData success failure, (), hello)"
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.TupleType
+                            (Elm.QualCustomType (Elm.ModuleName "RemoteData" [])
+                                "RemoteData"
+                                [ Elm.VariableType "success"
+                                , Elm.VariableType "failure"
+                                ]
+                            )
+                            Elm.UnitType
+                            [ Elm.VariableType "hello" ]
+                        )
+                    )
+                    (Parser.run Elm.type_ source)
+        , Test.test "lambda" <|
+            \_ ->
+                let
+                    source =
+                        "List success -> RemoteData.RemoteData success failure"
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.LambdaType
+                            (Elm.CustomType "List" [ Elm.VariableType "success" ])
+                            (Elm.QualCustomType (Elm.ModuleName "RemoteData" [])
+                                "RemoteData"
+                                [ Elm.VariableType "success"
+                                , Elm.VariableType "failure"
+                                ]
+                            )
+                        )
+                    )
+                    (Parser.run Elm.type_ source)
+        , Test.test "lambda" <|
+            \_ ->
+                let
+                    source =
+                        "List success -> RemoteData.RemoteData success failure"
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.LambdaType
+                            (Elm.CustomType "List" [ Elm.VariableType "success" ])
+                            (Elm.QualCustomType (Elm.ModuleName "RemoteData" [])
+                                "RemoteData"
+                                [ Elm.VariableType "success"
+                                , Elm.VariableType "failure"
+                                ]
+                            )
+                        )
+                    )
+                    (Parser.run Elm.type_ source)
+        , Test.test "lambda long" <|
+            \_ ->
+                let
+                    source =
+                        "String -> Int -> List success -> RemoteData.RemoteData success failure"
+                in
+                Expect.equal
+                    (Ok
+                        (Elm.LambdaType
+                            (Elm.CustomType "String" [])
+                            (Elm.LambdaType
+                                (Elm.CustomType "Int" [])
+                                (Elm.LambdaType
+                                    (Elm.CustomType "List" [ Elm.VariableType "success" ])
+                                    (Elm.QualCustomType (Elm.ModuleName "RemoteData" [])
+                                        "RemoteData"
+                                        [ Elm.VariableType "success"
+                                        , Elm.VariableType "failure"
+                                        ]
+                                    )
+                                )
+                            )
+                        )
+                    )
+                    (Parser.run Elm.type_ source)
         ]

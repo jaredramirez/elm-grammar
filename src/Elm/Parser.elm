@@ -16,6 +16,7 @@ module Elm.Parser exposing
     )
 
 import Elm.AST exposing (..)
+import Maybe.Extra as Maybe
 import Parser.Advanced as Parser exposing ((|.), (|=))
 import Parser.Extra as PExtra
 import Set
@@ -112,7 +113,6 @@ type Problem
     | ExpectingIf
     | ExpectingThen
     | ExpectingElse
-    | InternalCallExpressionProblem
     | InternalQualifiedVarExpressionProblem
     | ExpectingAtLeastOneModuleName
     | ExpectingColon
@@ -122,9 +122,9 @@ type Problem
 -- Elm Source --
 
 
-elm : Parser Elm
+elm : Parser ElmModule
 elm =
-    Parser.succeed Elm
+    Parser.succeed ElmModule
         |. Parser.spaces
         |= Parser.oneOf
             [ Parser.succeed identity
@@ -135,11 +135,23 @@ elm =
             ]
         |= Parser.oneOf
             [ Parser.succeed identity
-                |= PExtra.sequenceWithTrailing
-                    { subParser = moduleImport
+                |= PExtra.sequence
+                    { start = emptyToken
+                    , end = emptyToken
+                    , item =
+                        Parser.oneOf
+                            [ Parser.succeed Just
+                                |. Parser.spaces
+                                |= moduleImport
+                            , Parser.succeed Nothing
+                                |. Parser.chompUntil newLineToken
+                                |. Parser.spaces
+                            ]
                     , separator = atLeastOneSpace
                     , spaces = Parser.succeed ()
+                    , trailing = Parser.Forbidden
                     }
+                |> Parser.map Maybe.values
             , Parser.succeed []
             ]
 
@@ -151,38 +163,27 @@ elm =
 moduleDeclaration : Parser ModuleDeclaration
 moduleDeclaration =
     Parser.inContext CModuleDeclaration <|
-        Parser.oneOf
-            [ Parser.succeed
-                (\name maybeExposingList ->
-                    case maybeExposingList of
-                        Nothing ->
-                            ModuleDeclarationPartial name
-
-                        Just exposedList ->
-                            ModuleDeclaration name exposedList
-                )
-                |. Parser.spaces
-                |. Parser.oneOf
-                    [ Parser.keyword moduleToken
-                    , Parser.succeed ()
-                        |. Parser.keyword portToken
-                        |. Parser.spaces
-                        |. Parser.keyword moduleToken
-                    ]
-                |. Parser.spaces
-                |= moduleName
-                |. Parser.spaces
-                |= Parser.oneOf
-                    [ Parser.succeed identity
-                        |. Parser.keyword exposingToken
-                        |. Parser.spaces
-                        |= Parser.oneOf
-                            [ exposingList |> Parser.map Just
-                            , Parser.succeed Nothing
-                            ]
-                    , Parser.succeed Nothing
-                    ]
-            ]
+        Parser.succeed
+            (\name exposedList ->
+                ModuleDeclaration name exposedList
+            )
+            |. Parser.oneOf
+                [ Parser.keyword moduleToken
+                , Parser.succeed ()
+                    |. Parser.keyword portToken
+                    |. Parser.spaces
+                    |. Parser.keyword moduleToken
+                ]
+            |. Parser.spaces
+            |= moduleName
+            |. Parser.spaces
+            |= Parser.oneOf
+                [ Parser.succeed identity
+                    |. Parser.keyword exposingToken
+                    |. Parser.spaces
+                    |= exposingList
+                , Parser.succeed ExposingNone
+                ]
 
 
 
@@ -191,43 +192,44 @@ moduleDeclaration =
 
 moduleImport : Parser ModuleImport
 moduleImport =
-    moduleImportName
+    Parser.succeed identity
+        |. Parser.keyword importToken
+        |. atLeastOneSpace
+        |= moduleName
         |> Parser.andThen
             (\importedModuleName ->
                 Parser.inContext (CModuleImport importedModuleName) <|
-                    Parser.succeed (ModuleImport importedModuleName)
-                        |= Parser.oneOf
-                            [ Parser.succeed identity
-                                |. Parser.token asToken
-                                |. Parser.spaces
-                                |= Parser.oneOf
-                                    [ uppercaseIdentifier |> Parser.map Alias
-                                    , Parser.succeed AliasPartial
-                                    ]
-                            , Parser.succeed AliasNone
-                            ]
-                        |. Parser.spaces
-                        |= Parser.oneOf
-                            [ Parser.succeed identity
-                                |. Parser.keyword exposingToken
-                                |. Parser.spaces
-                                |= Parser.oneOf
-                                    [ exposingList |> Parser.map Just
-                                    , Parser.succeed Nothing
-                                    ]
-                            , Parser.succeed Nothing
-                            ]
+                    Parser.oneOf
+                        [ Parser.succeed
+                            (\alias_ exposing_ ->
+                                ModuleImport
+                                    importedModuleName
+                                    alias_
+                                    exposing_
+                            )
+                            -- TODO: Remove backtrackable?
+                            |. Parser.backtrackable atLeastOneSpace
+                            |= Parser.oneOf
+                                [ Parser.succeed identity
+                                    |. Parser.token asToken
+                                    |. Parser.spaces
+                                    |= Parser.oneOf
+                                        [ uppercaseIdentifier |> Parser.map Alias
+                                        , Parser.succeed AliasPartial
+                                        ]
+                                , Parser.succeed AliasNone
+                                ]
+                            |. Parser.spaces
+                            |= Parser.oneOf
+                                [ Parser.succeed identity
+                                    |. Parser.keyword exposingToken
+                                    |. Parser.spaces
+                                    |= exposingList
+                                , Parser.succeed ExposingNone
+                                ]
+                        , Parser.succeed (ModuleImport importedModuleName AliasNone ExposingNone)
+                        ]
             )
-
-
-moduleImportName : Parser ModuleName
-moduleImportName =
-    Parser.succeed identity
-        |. Parser.spaces
-        |. Parser.keyword importToken
-        |. Parser.spaces
-        |= moduleName
-        |. Parser.spaces
 
 
 
@@ -240,21 +242,66 @@ exposingList =
         Parser.oneOf
             [ Parser.succeed identity
                 |. Parser.symbol openParenthesisToken
-                |. Parser.spaces
                 |= Parser.oneOf
-                    [ Parser.succeed ExposingListDoubleDot
-                        |. Parser.token consToken
-                    , PExtra.sequenceWithTrailing
-                        { subParser = exposedItem
-                        , separator = Parser.symbol commaToken
-                        , spaces = Parser.spaces
-                        }
-                        |> Parser.map ExposingList
+                    [ Parser.succeed identity
+                        |. Parser.spaces
+                        |= Parser.oneOf
+                            [ Parser.succeed ExposingAll
+                                |. Parser.symbol dotDotToken
+                                |. Parser.spaces
+                                |. Parser.oneOf
+                                    [ Parser.symbol closeParenthesisToken
+                                    , Parser.succeed ()
+                                    ]
+                            , Parser.symbol closeParenthesisToken
+                                |> Parser.map (\() -> ExposingExplicit [])
+                            , Parser.succeed
+                                (\( listOfMaybes, wasTrailing ) ->
+                                    let
+                                        ( values, didHaveNothing ) =
+                                            List.foldr
+                                                (\cur ( curValues, curDidHaveNothing ) ->
+                                                    case cur of
+                                                        Nothing ->
+                                                            ( curValues, True )
+
+                                                        Just value ->
+                                                            ( value :: curValues, curDidHaveNothing )
+                                                )
+                                                ( [], False )
+                                                listOfMaybes
+                                    in
+                                    case wasTrailing of
+                                        PExtra.WasTrailing ->
+                                            ExposingTrailing values
+
+                                        PExtra.WasNotTrailing ->
+                                            if didHaveNothing then
+                                                ExposingTrailing values
+
+                                            else
+                                                ExposingExplicit values
+                                )
+                                |= PExtra.sequenceWithOptionalTrailing
+                                    { start = emptyToken
+                                    , end = emptyToken
+                                    , item =
+                                        Parser.oneOf
+                                            [ exposedItem |> Parser.map Just
+                                            , Parser.succeed Nothing
+                                                |. Parser.chompWhile (\c -> c /= ',' && c /= ')')
+                                            ]
+                                    , separator = Parser.token commaToken
+                                    , spaces = Parser.spaces
+                                    }
+                                |. Parser.oneOf
+                                    [ Parser.symbol closeParenthesisToken
+                                    , Parser.succeed ()
+                                    ]
+                            ]
+                    , Parser.succeed (ExposingTrailing [])
                     ]
-                |. Parser.oneOf
-                    [ Parser.symbol closeParenthesisToken
-                    , Parser.succeed ()
-                    ]
+            , Parser.succeed ExposingNone
             ]
 
 
@@ -283,10 +330,13 @@ exposedConstructors =
                 |= Parser.oneOf
                     [ Parser.token dotDotToken
                         |> Parser.map (\() -> ExposedConstructorsDotDot)
-                    , PExtra.sequenceWithTrailing
-                        { subParser = uppercaseIdentifier
-                        , separator = Parser.symbol commaToken
+                    , Parser.sequence
+                        { start = emptyToken
+                        , end = emptyToken
+                        , item = uppercaseIdentifier
+                        , separator = commaToken
                         , spaces = Parser.spaces
+                        , trailing = Parser.Optional
                         }
                         |> Parser.map ExposedConstructors
                     ]
@@ -440,7 +490,7 @@ customType =
                     , trailing = Parser.Forbidden
                     }
             , Parser.succeed (\subPatterns -> \modName -> Type modName subPatterns)
-                |= PExtra.sequenceWithTrailing
+                |= PExtra.sequenceWithTrailingLegacy
                     { subParser = Parser.lazy (\() -> typeTerm)
                     , separator = atLeastOneSpace
                     , spaces = Parser.succeed ()
@@ -477,7 +527,7 @@ recordType =
             [ Parser.succeed (\rest -> \firstLower -> RecordType (Just firstLower) rest)
                 |. Parser.token pipeToken
                 |. Parser.spaces
-                |= PExtra.sequenceWithTrailing
+                |= PExtra.sequenceWithTrailingLegacy
                     { subParser =
                         recordKeyValue
                             (Parser.lazy (\() -> type_))
@@ -497,7 +547,7 @@ recordType =
                     [ Parser.succeed identity
                         |. Parser.token commaToken
                         |. Parser.spaces
-                        |= PExtra.sequenceWithTrailing
+                        |= PExtra.sequenceWithTrailingLegacy
                             { subParser =
                                 recordKeyValue
                                     (Parser.lazy (\() -> type_))
@@ -685,7 +735,7 @@ patternTerm =
             Parser.succeed RecordPattern
                 |. Parser.symbol openCurlyBracketToken
                 |. Parser.spaces
-                |= PExtra.sequenceWithTrailing
+                |= PExtra.sequenceWithTrailingLegacy
                     { subParser = lowercaseIdentifier
                     , separator = Parser.symbol commaToken
                     , spaces = Parser.spaces
@@ -753,7 +803,7 @@ ctorPattern =
                         , trailing = Parser.Forbidden
                         }
                 , Parser.succeed (\subPatterns -> \modName -> CtorPattern modName subPatterns)
-                    |= PExtra.sequenceWithTrailing
+                    |= PExtra.sequenceWithTrailingLegacy
                         { subParser = Parser.lazy (\() -> patternTerm)
                         , separator = atLeastOneSpace
                         , spaces = Parser.succeed ()
@@ -932,7 +982,7 @@ recordOrUpdateExpression =
         |= Parser.oneOf
             [ Parser.inContext CRecordExpression <|
                 Parser.map RecordExpression
-                    (PExtra.sequenceWithTrailing
+                    (PExtra.sequenceWithTrailingLegacy
                         { subParser =
                             recordKeyValue
                                 (Parser.lazy (\() -> expression))
@@ -1234,7 +1284,7 @@ listLiteral subParser =
             |. Parser.symbol openSquareBracketToken
             |. Parser.spaces
             |= Parser.succeed identity
-            |= PExtra.sequenceWithTrailing
+            |= PExtra.sequenceWithTrailingLegacy
                 { subParser = subParser
                 , separator = Parser.symbol commaToken
                 , spaces = Parser.spaces
@@ -1568,6 +1618,11 @@ closeSquareBracketToken =
 emptyToken : Parser.Token Problem
 emptyToken =
     Parser.Token "" ExpectingNothing
+
+
+newLineToken : Parser.Token Problem
+newLineToken =
+    Parser.Token "\n" ExpectingNothing
 
 
 

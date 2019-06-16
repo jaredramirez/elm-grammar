@@ -1,6 +1,6 @@
 module Elm.AST exposing
     ( Alias(..)
-    , Elm(..)
+    , ElmModule(..)
     , ExposedCustomTypeConstructors(..)
     , ExposedItem(..)
     , ExposingList(..)
@@ -18,17 +18,16 @@ module Elm.AST exposing
     )
 
 
-type Elm
-    = Elm (Maybe ModuleDeclaration) (List ModuleImport)
+type ElmModule
+    = ElmModule (Maybe ModuleDeclaration) (List ModuleImport)
 
 
 type ModuleDeclaration
     = ModuleDeclaration ModuleName ExposingList
-    | ModuleDeclarationPartial ModuleName
 
 
 type ModuleImport
-    = ModuleImport ModuleName Alias (Maybe ExposingList)
+    = ModuleImport ModuleName Alias ExposingList
 
 
 type Alias
@@ -38,8 +37,10 @@ type Alias
 
 
 type ExposingList
-    = ExposingList (List ExposedItem)
-    | ExposingListDoubleDot
+    = ExposingExplicit (List ExposedItem)
+    | ExposingAll
+    | ExposingNone
+    | ExposingTrailing (List ExposedItem)
 
 
 type ExposedItem

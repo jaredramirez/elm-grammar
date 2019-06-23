@@ -3,13 +3,42 @@ module ParserTest exposing (test)
 import Elm.AST as Elm
 import Elm.Parser as Elm
 import Expect
-import Parser.Advanced as Parser exposing ((|.), (|=))
+import Parser.Advanced as Parser exposing (i, k)
 import Test
 
 
 test : Test.Test
 test =
-    Test.describe "Parser Tests"
+    Test.describe "Tests"
+        [ parserInternalsTests
+
+        -- , elmTests
+        ]
+
+
+parserInternalsTests : Test.Test
+parserInternalsTests =
+    Test.describe "Parser Internals Test"
+        [ Test.describe "isSubString"
+            [ Test.test "should pass if simple str" <|
+                \_ ->
+                    Expect.equal ( 3, 1, 4 )
+                        (Parser.isSubString "let" 0 1 1 "let x = 1")
+            , Test.test "should pass if weird str" <|
+                \_ ->
+                    Expect.equal ( 6, 1, 7 )
+                        (Parser.isSubString "only 🔥" 0 1 1 "only 🔥 people are allowed at this party")
+            , Test.test "should fail if str is not matched" <|
+                \_ ->
+                    Expect.equal ( -1, 1, 1 )
+                        (Parser.isSubString "my golly" 0 1 1 "oh wow dear, my golly goodness")
+            ]
+        ]
+
+
+elmTests : Test.Test
+elmTests =
+    Test.describe "Elm Tests"
         [ tokenTests
         , moduleNameTests
         , operatorTests
@@ -546,6 +575,15 @@ exposingListTests =
                             , Elm.ExposedValue "hello"
                             ]
                     )
+                    (Parser.run Elm.exposingList source)
+        , Test.test "Exposing invalid value" <|
+            \_ ->
+                let
+                    source =
+                        "('c', hello)"
+                in
+                Expect.equal
+                    (Ok <| Elm.ExposingExplicit [ Elm.ExposedValue "hello" ])
                     (Parser.run Elm.exposingList source)
         ]
 
@@ -1573,8 +1611,8 @@ expressionTests =
                     )
                     (Parser.run
                         (Parser.succeed identity
-                            |. Parser.spaces
-                            |= Elm.expression
+                            |> i Parser.spaces
+                            |> k Elm.expression
                         )
                         source
                     )
@@ -1611,8 +1649,8 @@ expressionTests =
                     )
                     (Parser.run
                         (Parser.succeed identity
-                            |. Parser.spaces
-                            |= Elm.expression
+                            |> i Parser.spaces
+                            |> k Elm.expression
                         )
                         source
                     )
@@ -1633,8 +1671,8 @@ expressionTests =
                     )
                     (Parser.run
                         (Parser.succeed identity
-                            |. Parser.spaces
-                            |= Elm.expression
+                            |> i Parser.spaces
+                            |> k Elm.expression
                         )
                         source
                     )
@@ -1659,8 +1697,8 @@ expressionTests =
                     )
                     (Parser.run
                         (Parser.succeed identity
-                            |. Parser.spaces
-                            |= Elm.expression
+                            |> i Parser.spaces
+                            |> k Elm.expression
                         )
                         source
                     )
@@ -1680,8 +1718,8 @@ expressionTests =
                     )
                     (Parser.run
                         (Parser.succeed identity
-                            |. Parser.spaces
-                            |= Elm.expression
+                            |> i Parser.spaces
+                            |> k Elm.expression
                         )
                         source
                     )
@@ -1711,8 +1749,8 @@ expressionTests =
                     )
                     (Parser.run
                         (Parser.succeed identity
-                            |. Parser.spaces
-                            |= Elm.expression
+                            |> i Parser.spaces
+                            |> k Elm.expression
                         )
                         source
                     )
@@ -1752,8 +1790,8 @@ expressionTests =
                     )
                     (Parser.run
                         (Parser.succeed identity
-                            |. Parser.spaces
-                            |= Elm.expression
+                            |> i Parser.spaces
+                            |> k Elm.expression
                         )
                         source
                     )
@@ -1767,8 +1805,8 @@ expressionTests =
                     (Ok (Elm.QualVarExpression (Elm.ModuleName "Hello" [ "World" ]) "hi"))
                     (Parser.run
                         (Parser.succeed identity
-                            |. Parser.spaces
-                            |= Elm.expression
+                            |> i Parser.spaces
+                            |> k Elm.expression
                         )
                         source
                     )
@@ -1861,8 +1899,8 @@ declarationTests =
                     )
                     (Parser.run
                         (Parser.succeed identity
-                            |. Parser.spaces
-                            |= Elm.valueDeclaration
+                            |> i Parser.spaces
+                            |> k Elm.valueDeclaration
                         )
                         source
                     )
@@ -2138,8 +2176,8 @@ typeDeclarationTests =
                     )
                     (Parser.run
                         (Parser.succeed identity
-                            |. Parser.spaces
-                            |= Elm.typeDeclaration
+                            |> i Parser.spaces
+                            |> k Elm.typeDeclaration
                         )
                         source
                     )
@@ -2161,8 +2199,8 @@ typeDeclarationTests =
                     )
                     (Parser.run
                         (Parser.succeed identity
-                            |. Parser.spaces
-                            |= Elm.typeDeclaration
+                            |> i Parser.spaces
+                            |> k Elm.typeDeclaration
                         )
                         source
                     )
@@ -2217,7 +2255,7 @@ sourceTests =
                                     )
                                 import Hello as H
                                 import World exposing (World(..), world)
-                                import Parser as P exposing ((|.))
+                                import Parser as P exposing ((|> i))
                                 """
                 in
                 Expect.equal

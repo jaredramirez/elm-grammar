@@ -1,54 +1,22 @@
 module Parser.Extra exposing
     ( SequenceConfig
     , WasTrailing(..)
-    , chompChar
-    , chompUntilEndOfLine
-    , join
     , sequence
     , sequenceAtLeastOne
     , sequenceWithOptionalTrailing
     , sequenceWithTrailingLegacy
     , sequenceWithTrailingLegacyHelp
     , spacesAtLeastOne
-    , withDefault
     )
 
-import Parser.Advanced as Parser exposing ((|.), (|=), Parser)
-
-
-type TrailingExtra
-    = Trailing
-    | TrailingInTheMiddle
-    | NotTrailing
-
-
-chompChar : Char -> p -> Parser c p ()
-chompChar char problem =
-    Parser.chompIf (\c -> c == char) problem
-
-
-chompUntilEndOfLine : Parser c p ()
-chompUntilEndOfLine =
-    Parser.chompWhile (\c -> c /= '\n')
-
-
-withDefault : item -> Parser c p item -> Parser c p item
-withDefault default subParser =
-    Parser.oneOf [ subParser, Parser.succeed default ]
+import Parser.Advanced as Parser exposing (Parser, i, k)
 
 
 spacesAtLeastOne : p -> Parser c p ()
 spacesAtLeastOne problem =
     Parser.succeed ()
-        |. Parser.chompIf (\c -> c == ' ' || c == '\n' || c == '\u{000D}') problem
-        |. Parser.spaces
-
-
-type alias SequenceConfig item c p =
-    { subParser : Parser c p item
-    , separator : Parser c p ()
-    , spaces : Parser c p ()
-    }
+        |> i (Parser.chompIf (\c -> c == ' ' || c == '\n' || c == '\u{000D}') problem)
+        |> i Parser.spaces
 
 
 {-| Just like Parser.sequence except separator is `Parser c x ()` instead of `Parser.Token c x ()`
@@ -62,11 +30,11 @@ sequence :
     , trailing : Parser.Trailing
     }
     -> Parser c x (List a)
-sequence i =
+sequence config =
     Parser.succeed identity
-        |. Parser.token i.start
-        |. i.spaces
-        |= sequenceEnd (Parser.token i.end) i.spaces i.item i.separator i.trailing
+        |> i (Parser.token config.start)
+        |> i config.spaces
+        |> k (sequenceEnd (Parser.token config.end) config.spaces config.item config.separator config.trailing)
 
 
 sequenceEnd :
@@ -90,10 +58,10 @@ sequenceEnd ender ws parseItem sep trailing =
                 Parser.Mandatory ->
                     ignorer
                         (Parser.succeed identity
-                            |. ws
-                            |. sep
-                            |. ws
-                            |= Parser.loop [ item ] (sequenceEndMandatory ws parseItem sep)
+                            |> i ws
+                            |> i sep
+                            |> i ws
+                            |> k (Parser.loop [ item ] (sequenceEndMandatory ws parseItem sep))
                         )
                         ender
     in
@@ -103,8 +71,8 @@ sequenceEnd ender ws parseItem sep trailing =
         ]
 
 
-{-| Just like Parser.sequence except separator is `Parser c x ()` instead of `Parser.Token c x ()`
-and it tells you if the parser was actually trailing.
+{-| Just like Parser.sequence except separator is `Parser c x ()` instead of `Parser.Token c x ()`,
+`trailing` is always optinal, and it tells you if the parser _actually was_ trailing.
 -}
 type WasTrailing
     = WasTrailing
@@ -119,11 +87,11 @@ sequenceWithOptionalTrailing :
     , item : Parser c x a
     }
     -> Parser c x ( List a, WasTrailing )
-sequenceWithOptionalTrailing i =
+sequenceWithOptionalTrailing config =
     Parser.succeed identity
-        |. Parser.token i.start
-        |. i.spaces
-        |= sequenceEndWithOptionalTrailing (Parser.token i.end) i.spaces i.item i.separator
+        |> i (Parser.token config.start)
+        |> i config.spaces
+        |> k (sequenceEndWithOptionalTrailing (Parser.token config.end) config.spaces config.item config.separator)
 
 
 sequenceEndWithOptionalTrailing :
@@ -152,14 +120,16 @@ sequenceEndForbidden :
     -> Parser c x (Parser.Step (List a) (List a))
 sequenceEndForbidden ender ws parseItem sep revItems =
     Parser.succeed identity
-        |. ws
-        |= Parser.oneOf
-            [ Parser.succeed identity
-                |. sep
-                |. ws
-                |= Parser.map (\item -> Parser.Loop (item :: revItems)) parseItem
-            , ender |> Parser.map (\_ -> Parser.Done (List.reverse revItems))
-            ]
+        |> i ws
+        |> k
+            (Parser.oneOf
+                [ Parser.succeed identity
+                    |> i sep
+                    |> i ws
+                    |> k (Parser.map (\item -> Parser.Loop (item :: revItems)) parseItem)
+                , ender |> Parser.map (\_ -> Parser.Done (List.reverse revItems))
+                ]
+            )
 
 
 sequenceEndOptional :
@@ -175,17 +145,21 @@ sequenceEndOptional ender ws parseItem sep revItems =
             Parser.map (\_ -> Parser.Done ( List.reverse revItems, wasTrailing )) ender
     in
     Parser.succeed identity
-        |. ws
-        |= Parser.oneOf
-            [ Parser.succeed identity
-                |. sep
-                |. ws
-                |= Parser.oneOf
-                    [ parseItem |> Parser.map (\item -> Parser.Loop (item :: revItems))
-                    , parseEnd WasTrailing
-                    ]
-            , parseEnd WasNotTrailing
-            ]
+        |> i ws
+        |> k
+            (Parser.oneOf
+                [ Parser.succeed identity
+                    |> i sep
+                    |> i ws
+                    |> k
+                        (Parser.oneOf
+                            [ parseItem |> Parser.map (\item -> Parser.Loop (item :: revItems))
+                            , parseEnd WasTrailing
+                            ]
+                        )
+                , parseEnd WasNotTrailing
+                ]
+            )
 
 
 sequenceEndMandatory :
@@ -202,23 +176,26 @@ sequenceEndMandatory ws parseItem sep revItems =
         ]
 
 
-keeper : Parser c x (a -> b) -> Parser c x a -> Parser c x b
-keeper parseFunc parseArg =
-    parseFunc |= parseArg
-
-
 ignorer : Parser c x keep -> Parser c x ignore -> Parser c x keep
 ignorer keepParser ignoreParser =
-    keepParser |. ignoreParser
-
-
-join : Parser c x (Parser c x v) -> Parser c x v
-join double =
-    Parser.andThen identity double
+    keepParser |> i ignoreParser
 
 
 
 -- Legacy custom sequences
+
+
+type TrailingExtra
+    = Trailing
+    | TrailingInTheMiddle
+    | NotTrailing
+
+
+type alias SequenceConfig item c p =
+    { subParser : Parser c p item
+    , separator : Parser c p ()
+    , spaces : Parser c p ()
+    }
 
 
 sequenceWithTrailingLegacy : SequenceConfig item c p -> Parser c p (List item)
@@ -234,23 +211,25 @@ sequenceWithTrailingLegacyHelp :
 sequenceWithTrailingLegacyHelp { subParser, separator, spaces } ( items, trailing ) =
     Parser.oneOf
         [ Parser.succeed (\nextItem nextTrailing -> Parser.Loop ( nextItem :: items, nextTrailing ))
-            |= subParser
-            |. spaces
-            |= Parser.oneOf
-                [ separator |> Parser.map (\() -> Trailing)
-                , Parser.succeed
-                    (case trailing of
-                        Trailing ->
-                            NotTrailing
+            |> k subParser
+            |> i spaces
+            |> k
+                (Parser.oneOf
+                    [ separator |> Parser.map (\() -> Trailing)
+                    , Parser.succeed
+                        (case trailing of
+                            Trailing ->
+                                NotTrailing
 
-                        _ ->
-                            trailing
-                    )
-                ]
-            |. spaces
+                            _ ->
+                                trailing
+                        )
+                    ]
+                )
+            |> i spaces
         , Parser.succeed (Parser.Loop ( items, TrailingInTheMiddle ))
-            |. separator
-            |. spaces
+            |> i separator
+            |> i spaces
         , Parser.succeed (Parser.Done ( List.reverse items, trailing ))
         ]
 
@@ -258,8 +237,8 @@ sequenceWithTrailingLegacyHelp { subParser, separator, spaces } ( items, trailin
 sequenceAtLeastOne : SequenceConfig item c p -> Parser c p ( item, List item )
 sequenceAtLeastOne config =
     Parser.succeed (\head ( rest, trailing ) -> ( head, rest, trailing ))
-        |= config.subParser
-        |= Parser.loop [] (sequenceAtLeastOneHelp config)
+        |> k config.subParser
+        |> k (Parser.loop [] (sequenceAtLeastOneHelp config))
         |> Parser.map (\( head, rest, _ ) -> ( head, rest ))
 
 
@@ -267,12 +246,14 @@ sequenceAtLeastOneHelp : SequenceConfig item c p -> List item -> Parser c p (Par
 sequenceAtLeastOneHelp { subParser, separator, spaces } items =
     Parser.oneOf
         [ Parser.succeed identity
-            |. spaces
-            |. separator
-            |. spaces
-            |= Parser.oneOf
-                [ subParser |> Parser.map (\nextItem -> Parser.Loop (nextItem :: items))
-                , Parser.succeed (Parser.Done ( List.reverse items, Trailing ))
-                ]
+            |> i spaces
+            |> i separator
+            |> i spaces
+            |> k
+                (Parser.oneOf
+                    [ subParser |> Parser.map (\nextItem -> Parser.Loop (nextItem :: items))
+                    , Parser.succeed (Parser.Done ( List.reverse items, Trailing ))
+                    ]
+                )
         , Parser.succeed (Parser.Done ( List.reverse items, NotTrailing ))
         ]

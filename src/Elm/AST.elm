@@ -1,5 +1,6 @@
 module Elm.AST exposing
     ( Alias(..)
+    , Context(..)
     , ElmModule(..)
     , ExposedCustomTypeConstructors(..)
     , ExposedItem(..)
@@ -11,6 +12,7 @@ module Elm.AST exposing
     , ModuleName(..)
     , Operator(..)
     , Pattern(..)
+    , Problem(..)
     , Type(..)
     , TypeDeclaration(..)
     , UppercaseIdentifier
@@ -40,7 +42,10 @@ type ExposingList
     = ExposingExplicit (List ExposedItem)
     | ExposingAll
     | ExposingNone
+      -- Incremental
     | ExposingTrailing (List ExposedItem)
+    | ExposingProblemTrailing (List ExposedItem) Problem
+    | ExposingProblem (List ExposedItem) Problem
 
 
 type ExposedItem
@@ -147,3 +152,96 @@ type alias UppercaseIdentifier =
 
 type alias Identifier =
     String
+
+
+
+-- Parser types
+
+
+type Context
+    = CRecordKeyValue
+    | CLambdaExpression
+    | CRecordExpression
+    | CUpdateExpression
+    | CLetExpression
+    | CLetExpressionDeclarations
+    | CLetExpressionBody
+    | CCallExpression
+    | CPattern
+    | CRecordPattern
+    | CCtorPattern
+    | CAliasPattern
+    | CConsPattern
+    | CChar
+    | CString
+    | CVariable
+    | CList
+    | CNumber
+    | CTupleParens
+    | CFunctionDeclaration
+    | CValueDeclaration
+    | CPatternMatchDeclaration
+    | CModuleName
+    | COperator
+    | CExposedItems
+    | CExposedConstructors
+    | CExposingList
+    | CModuleImport ModuleName
+    | CModuleDeclaration
+    | CDeclaration
+    | CType
+
+
+type Problem
+    = ExpectingModule
+    | ExpectingPort
+    | ExpectingExposing
+    | ExpectingImport
+    | ExpectingSpaces
+    | ExpectingAs
+    | ExpectingType
+    | ExpectingAlias
+    | ExpectingLet
+    | ExpectingIn
+    | ExpectingOpenParen
+    | ExpectingCloseParen
+    | ExpectingComma
+    | ExpectingDot
+    | ExpectingDotDot
+    | ExpectingCons
+    | ExpectingPlus
+    | ExpectingMinus
+    | ExpectingStar
+    | ExpectingForwardSlash
+    | ExpectingRightCarrot
+    | ExpectingLeftCarrot
+    | ExpectingPipe
+    | ExpectingEqual
+    | ExpectingBackSlash
+    | ExpectingArrow
+    | ExpectingUnderscore
+    | ExpectingOpenCurlyBracket
+    | ExpectingCloseCurlyBracket
+    | ExpectingNegate
+    | ExpectingVariable
+    | ExpectingSingleQuote
+    | ExpectingDoubleQuote
+    | ExpectingCharacter
+    | ExpectingOpenSquareBracket
+    | ExpectingCloseSquareBracket
+    | ExpectingNumber
+    | InvalidNumber
+    | ExpectingLowerCharacter
+    | ExpectingUpperCharacter
+    | ExpectingNothing
+    | ExpectingAny
+    | ExpectingCase
+    | ExpectingOf
+    | ExpectingIndent
+    | ExpectingArguement
+    | ExpectingIf
+    | ExpectingThen
+    | ExpectingElse
+    | InternalQualifiedVarExpressionProblem
+    | ExpectingAtLeastOneModuleName
+    | ExpectingColon

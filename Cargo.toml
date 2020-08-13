@@ -1,0 +1,11 @@
+[package]
+name = "elm-grammar"
+version = "0.1.0"
+authors = ["Jared Ramirez <jaredramirez@me.com>"]
+edition = "2018"
+
+[dependencies]
+tree-sitter = "0.16.1"
+
+[build-dependencies]
+cc = "*"

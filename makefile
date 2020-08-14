@@ -1,11 +1,13 @@
+.PHONY = build-shell shell build run check dev
+
 build:
-	nix-shell --pure --run "cargo build"
+	cargo build
 
 run:
-	nix-shell --pure --run "cargo run"
+	cargo run
 
 check:
-	nix-shell --pure --run "cargo check"
+	cargo check
 
 dev:
-	nix-shell --pure --run "cargo-watch --clear"
+	cargo-watch --clear

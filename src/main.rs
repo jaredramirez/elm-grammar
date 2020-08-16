@@ -55,14 +55,17 @@ fn get_node_text(source: &String, node: tree_sitter::Node) -> String {
     source[node.start_byte()..node.end_byte()].to_string()
 }
 
-fn cursor_to_exposing(source: &String, cursor: &mut tree_sitter::TreeCursor) -> Exposing {
+fn cursor_to_exposing(source: &String, mut cursor: &mut tree_sitter::TreeCursor) -> ExposingValues {
     let mut exposing_values = Vec::new();
-
-    let parent_node = cursor.node();
-    let mut has_child = cursor.goto_first_child();
+    let has_children = cursor.goto_first_child();
+    let mut has_child = has_children;
     while has_child {
         let exposing_child_node = cursor.node();
         match exposing_child_node.kind() {
+            "double_dot" => {
+                cursor.goto_parent();
+                return ExposingValues::ExposingAll;
+            }
             "exposed_value" => {
                 let has_expsoing_value = cursor.goto_first_child();
                 if has_expsoing_value {
@@ -76,30 +79,89 @@ fn cursor_to_exposing(source: &String, cursor: &mut tree_sitter::TreeCursor) -> 
                     cursor.goto_parent();
                 }
             }
-            "exposed_type" => {
-                println!("exposed_type");
-                println!("{}", exposing_child_node.to_sexp());
-                let has_expsoing_value = cursor.goto_first_child();
-                if has_expsoing_value {
-                    let exposing_value_node = cursor.node();
-                    match exposing_value_node.kind() {
-                        "upper_case_identifier" => exposing_values.push(ExposedItem::ExposedType(
-                            TypeName(get_node_text(&source, exposing_value_node)),
-                        )),
-                        _ => (),
-                    }
-                    cursor.goto_parent();
-                }
+            "exposed_type" => match cursor_to_exposing_type(&source, &mut cursor) {
+                Some(exposed_type) => exposing_values.push(exposed_type),
+                None => (),
+            },
+            _ => (),
+        }
+        has_child = cursor.goto_next_sibling();
+    }
+    if has_children {
+        cursor.goto_parent();
+    }
+    ExposingValues::ExposingSome(exposing_values)
+}
+
+fn cursor_to_exposing_type(
+    source: &String,
+    mut cursor: &mut tree_sitter::TreeCursor,
+) -> Option<ExposedItem> {
+    let has_children = cursor.goto_first_child();
+    let mut has_child = has_children;
+
+    let mut opt_exposed_type = None;
+    let mut opt_custom_type_constructors = None;
+    while has_child {
+        let exposing_child_node = cursor.node();
+        match exposing_child_node.kind() {
+            "upper_case_identifier" => {
+                opt_exposed_type = Some(TypeName(get_node_text(&source, exposing_child_node)));
+            }
+            "exposed_union_constructors" => {
+                opt_custom_type_constructors =
+                    cursor_to_custom_type_constructors(&source, &mut cursor);
             }
             _ => (),
         }
         has_child = cursor.goto_next_sibling();
     }
-    if parent_node.id() != cursor.node().id() {
-        cursor.reset(parent_node);
+    if has_children {
+        cursor.goto_parent();
     }
 
-    Exposing::ExposingSome(exposing_values)
+    match (opt_exposed_type, opt_custom_type_constructors) {
+        (Some(type_name), Some(constructors)) => {
+            Some(ExposedItem::ExposedCustomType(type_name, constructors))
+        }
+        (Some(type_name), None) => Some(ExposedItem::ExposedType(type_name)),
+        _ => None,
+    }
+}
+
+fn cursor_to_custom_type_constructors(
+    source: &String,
+    cursor: &mut tree_sitter::TreeCursor,
+) -> Option<ExposingConstructors> {
+    let has_children = cursor.goto_first_child();
+    let mut has_child = has_children;
+
+    let mut opt_constructors: Option<Vec<TypeName>> = None;
+    while has_child {
+        let child_node = cursor.node();
+        match child_node.kind() {
+            "double_dot" => {
+                cursor.goto_parent();
+                return Some(ExposingConstructors::ExposingAll);
+            }
+            "upper_case_identifier" => {
+                let mut constructors = opt_constructors.unwrap_or(Vec::new());
+                constructors.push(TypeName(get_node_text(&source, child_node)));
+                opt_constructors = Some(constructors);
+            }
+            "lower_case_identifier" => {
+                let mut constructors = opt_constructors.unwrap_or(Vec::new());
+                constructors.push(TypeName(get_node_text(&source, child_node)));
+                opt_constructors = Some(constructors);
+            }
+            _ => (),
+        }
+        has_child = cursor.goto_next_sibling();
+    }
+    if has_children {
+        cursor.goto_parent();
+    }
+    opt_constructors.map(|constructors| ExposingConstructors::ExposingSome(constructors))
 }
 
 // DATA
@@ -132,7 +194,7 @@ struct TypeName(String);
 struct VarName(String);
 
 #[derive(Debug)]
-enum Exposing {
+enum ExposingValues {
     ExposingAll,
     ExposingSome(Vec<ExposedItem>),
 }
@@ -141,7 +203,13 @@ enum Exposing {
 enum ExposedItem {
     ExposedValue(VarName),
     ExposedType(TypeName),
-    ExposedCustomType(VarName, Vec<VarName>),
+    ExposedCustomType(TypeName, ExposingConstructors),
+}
+
+#[derive(Debug)]
+enum ExposingConstructors {
+    ExposingAll,
+    ExposingSome(Vec<TypeName>),
 }
 
 #[derive(Debug)]
@@ -222,7 +290,7 @@ struct CasePattern<Pattern, Expr> {
 #[derive(Debug)]
 struct Module {
     module_name: Option<ModuleName>,
-    exposing: Option<Exposing>,
+    exposing: Option<ExposingValues>,
 }
 
 #[derive(Debug)]
